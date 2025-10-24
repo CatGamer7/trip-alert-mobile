@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local config
+/local.properties
+/.idea/
+*.iml
+
+# Keystore
+*.jks
+*.keystore
+
+# Google services
+google-services.json
+
+# OS junk
+.DS_Store
+Thumbs.db

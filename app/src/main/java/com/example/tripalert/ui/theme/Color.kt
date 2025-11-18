@@ -2,10 +2,18 @@ package com.example.tripalert.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Светлая тема
+val GreenPrimary = Color(0xFFBCD4B3)
+val GreyBackground = Color(0xFFD8D8D8)
+val TextGreyBack = Color(0xFF585858)
+val LogoAva = Color(0xFF8DBB7B)
+val LightBackground = Color(0xFFFFFFFF)
+val LightTextPrimary = Color(0xFF000000)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Темная тема
+val GreenPrimaryDark = Color(0xFF95A291) // приглушенный зеленый
+val GreyBackgroundDark = Color(0xFF484444) // карточки
+val TextGreyBackDark = Color(0xFFB3B3B3) // второстепенный текст
+val LogoAvaDark = Color(0xFF7BA68A)
+val DarkBackground = Color(0xFF484444) // фон экрана
+val DarkTextPrimary = Color(0xFF000000) // основной текст

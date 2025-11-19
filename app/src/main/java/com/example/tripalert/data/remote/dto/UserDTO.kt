@@ -1,11 +1,14 @@
 package com.example.tripalert.data.remote.dto
 
+import com.google.gson.annotations.SerializedName
+
 data class CreateUserDTO(
     val username: String,
     val password: String,
     val email: String,
     val timeOffset: Int = 15,
-    val preferredTransport: String = "WALK"
+    // ИСПРАВЛЕНО: Int согласно схеме БД (smallint)
+    val preferredTransport: Int
 )
 
 data class UpdateUserDTO(
@@ -13,14 +16,15 @@ data class UpdateUserDTO(
     val password: String? = null,
     val email: String? = null,
     val timeOffset: Int? = null,
-    val preferredTransport: String? = null
+    // ИСПРАВЛЕНО: Int согласно схеме БД (smallint)
+    val preferredTransport: Int? = null
 )
 
 data class UserResponseDTO(
     val id: Long,
     val username: String,
-    val email: String,
-    val password: String,
+    val email: String?, // Может быть null, если бэк не отдает
     val timeOffset: Int,
-    val preferredTransport: String
+    // ИСПРАВЛЕНО: Int согласно схеме БД (smallint)
+    val preferredTransport: Int
 )

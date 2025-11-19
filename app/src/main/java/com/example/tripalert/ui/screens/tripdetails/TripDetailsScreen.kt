@@ -1,377 +1,383 @@
 package com.example.tripalert.ui.screens.tripdetails
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+// ✅ ИСПРАВЛЕНО: Правильный импорт KeyboardOptions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tripalert.R
-import com.example.tripalert.ui.screens.triplist.DailyTripsTopBar
-import com.example.tripalert.ui.theme.GreenPrimary
-import com.example.tripalert.ui.theme.GreyBackground
-import org.koin.androidx.compose.getViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import com.example.tripalert.domain.models.TransportType
+import org.koin.androidx.compose.koinViewModel
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
+// ✅ ИСПРАВЛЕНО: Добавляем аннотацию OptIn для Material3 API
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripDetailsScreen(
-    tripId: Long? = null,
-    isEditing: Boolean = false,
-    viewModel: TripDetailsViewModel = getViewModel()
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: TripDetailsViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
-    val calendar = Calendar.getInstance()
-    var showConfirmDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val isCreationMode = state.trip.id == 0L
 
-    // --- Инициализация ---
-    LaunchedEffect(tripId, isEditing) {
-        viewModel.setEditing(isEditing)
-        tripId?.let { viewModel.loadTrip(it) }
+    // Переменная для управления состоянием активности FAB
+    val isFabEnabled = !state.isSaving && !state.isLoading
 
-        if (state.date.isBlank()) {
-            val today = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date())
-            viewModel.updateField(date = today)
-        }
-
-        if (state.departureTime.isBlank() && state.arrivalTime.isNotBlank()) {
-            viewModel.calculateDeparture(state.arrivalTime, 17)
+    // --- Эффекты ---
+    LaunchedEffect(state.saveSuccessful) {
+        if (state.saveSuccessful) {
+            onNavigateBack()
+            viewModel.saveComplete()
         }
     }
 
-    // --- Диалоги выбора даты и времени ---
-    val datePickerDialog = remember {
-        DatePickerDialog(
-            context,
-            { _, year, month, day ->
-                val selected = String.format("%02d.%02d.%04d", day, month + 1, year)
-                viewModel.updateField(date = selected)
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).apply { datePicker.minDate = calendar.timeInMillis }
+    LaunchedEffect(state.error) {
+        state.error?.let { message ->
+            snackbarHostState.showSnackbar(message = message, actionLabel = "OK", duration = SnackbarDuration.Short)
+            viewModel.errorShown()
+        }
     }
 
-    val timePickerDialog = remember {
-        TimePickerDialog(
-            context,
-            { _, hour, minute ->
-                val arrival = String.format("%02d:%02d", hour, minute)
-                viewModel.updateField(arrival = arrival)
-                viewModel.calculateDeparture(arrival, 17)
-            },
-            calendar.get(Calendar.HOUR_OF_DAY),
-            calendar.get(Calendar.MINUTE),
-            true
-        )
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = { DailyTripsTopBar() },
-            containerColor = Color.White
-        ) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+    // --- UI ---
+    Scaffold(
+        topBar = {
+            TripDetailsTopBar(
+                title = if (isCreationMode) "Создание поездки" else "Редактирование",
+                onBackClick = onNavigateBack
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            // ✅ ИСПРАВЛЕНО: Убираем параметр 'enabled' и используем условный onClick
+            FloatingActionButton(
+                // ✅ ИСПРАВЛЕННЫЙ ВАРИАНТ
+                onClick = {
+                    if (isFabEnabled) {
+                        viewModel.saveTrip() // Вызываем метод
+                    }
+                },
+                modifier = Modifier.size(70.dp),
+                // Material 3 автоматически меняет цвет, если onClick == {}
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = CircleShape,
             ) {
-                item {
-                    Text(
-                        text = if (state.isEditing) "Редактировать поездку" else "Новая поездка",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
+                if (state.isSaving) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 3.dp, modifier = Modifier.size(24.dp))
+                } else {
+                    Icon(
+                        painter = painterResource(id = R.drawable.plus),
+                        contentDescription = "Сохранить",
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { padding ->
 
-                item { InputCard("Откуда", state.fromAddress, { viewModel.updateField(from = it) }, icon = painterResource(id = R.drawable.marker)) }
-                item { InputCard("Куда", state.toAddress, { viewModel.updateField(to = it) }, icon = painterResource(id = R.drawable.marker)) }
-                item { InputCard("Когда", state.date, {}, icon = painterResource(id = R.drawable.calendar), onIconClick = { datePickerDialog.show() }) }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InputCard("Прибытие", state.arrivalTime, {}, icon = painterResource(id = R.drawable.clock), onIconClick = { timePickerDialog.show() })
+        Box(
+            modifier = modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+
+                // 1. КОНТЕЙНЕР ДЛЯ АДРЕСОВ
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .border(2.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(35.dp)),
+                    shape = RoundedCornerShape(35.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text(
-                            text = "Выход в: ${state.departureTime}",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.DarkGray,
-                            modifier = Modifier.padding(start = 12.dp)
+                            text = "Маршрут",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+
+                        AddressInputField(
+                            value = state.trip.originAddress ?: "",
+                            onValueChange = viewModel::updateOriginAddress,
+                            label = "Откуда",
+                            error = state.originAddressError,
+                            leadingIcon = R.drawable.marker,
+                        )
+
+                        AddressInputField(
+                            value = state.trip.destinationAddress ?: "",
+                            onValueChange = viewModel::updateDestinationAddress,
+                            label = "Куда",
+                            error = state.destinationAddressError,
+                            leadingIcon = R.drawable.marker,
+                            imeAction = ImeAction.Done
                         )
                     }
                 }
-                item { DropdownInputCard("Напомнить за", state.reminderTime, listOf("5 минут","10 минут","15 минут","30 минут","1 час"), onOptionSelected = { viewModel.updateField(reminderTime = it) }) }
-                item { Spacer(modifier = Modifier.height(120.dp)) }
-            }
-        }
 
-        // --- Кнопки добавления / сохранения / удаления ---
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 24.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            if (state.isEditing) {
-                Box(
+                // 2. ВРЕМЯ И ДАТА
+                Card(
                     modifier = Modifier
-                        .size(60.dp)
-                        .shadow(8.dp, CircleShape)
-                        .clip(CircleShape)
-                        .background(GreenPrimary)
-                        .clickable { showConfirmDialog = true },
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .border(2.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(35.dp)),
+                    shape = RoundedCornerShape(35.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    Icon(painterResource(id = R.drawable.trash), contentDescription = "Удалить", tint = Color.Black, modifier = Modifier.size(28.dp))
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            text = "Время и дата",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+
+                        DateTimePicker(
+                            dateTime = state.trip.plannedTime,
+                            onDateTimeChange = viewModel::updatePlannedTime,
+                            label = "Планируемое прибытие"
+                        )
+
+                        AlertTimePicker()
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .width(196.dp)
-                        .height(60.dp)
-                        .shadow(8.dp, RoundedCornerShape(28.dp))
-                        .background(GreenPrimary, RoundedCornerShape(28.dp))
-                        .clickable { viewModel.saveTrip {} },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Сохранить", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .width(290.dp)
-                        .height(60.dp)
-                        .shadow(10.dp, RoundedCornerShape(28.dp))
-                        .background(GreenPrimary, RoundedCornerShape(28.dp))
-                        .clickable { viewModel.saveTrip {} },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Добавить поездку", color = Color.Black, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        // --- Диалог удаления ---
-        if (showConfirmDialog) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0x80000000))
-                    .clickable(enabled = true) {},
-                contentAlignment = Alignment.Center
-            ) {
-                ConfirmDeleteDialog(
-                    onConfirm = {
-                        viewModel.deleteTrip {}
-                        showConfirmDialog = false
+                // 3. ВЫБОР ТРАНСПОРТА
+                TransportSelector(
+                    selectedType = state.trip.transportType,
+                    onTypeSelected = {
+                        // viewModel.updateTransportType(it)
                     },
-                    onDismiss = { showConfirmDialog = false }
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 )
+
+                Spacer(modifier = Modifier.height(64.dp))
+            }
+
+            // --- Индикатор загрузки ---
+            AnimatedVisibility(
+                visible = state.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
 
-// --- Composable для ввода ---
+// ✅ ИСПРАВЛЕНО: Добавляем аннотацию OptIn
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InputCard(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    icon: Painter? = null,
-    onIconClick: (() -> Unit)? = null
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, fontWeight = FontWeight.Medium, color = Color.Black, fontSize = 20.sp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .shadow(
-                    elevation = 10.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    ambientColor = Color(0x33000000),
-                    spotColor = Color(0x33000000)
-                )
-                .background(GreyBackground, RoundedCornerShape(28.dp))
-                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(28.dp))
-                .clickable(enabled = onIconClick != null) { onIconClick?.invoke() }
-                .padding(horizontal = 20.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = value, color = Color.Black, fontSize = 20.sp)
-                if (icon != null) {
-                    Image(
-                        painter = icon,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable(enabled = onIconClick != null) { onIconClick?.invoke() }
-                    )
-                }
-            }
-        }
-    }
-}
-
-// --- Выпадающий список ---
-@Composable
-fun DropdownInputCard(
-    label: String,
-    value: String,
-    options: List<String>,
-    onOptionSelected: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, fontWeight = FontWeight.Medium, color = Color.Black, fontSize = 20.sp)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .shadow(
-                    elevation = 10.dp,
-                    shape = RoundedCornerShape(28.dp),
-                    ambientColor = Color(0x33000000),
-                    spotColor = Color(0x33000000)
-                )
-                .background(GreyBackground, RoundedCornerShape(28.dp))
-                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(28.dp))
-                .clickable { expanded = !expanded }
-                .padding(horizontal = 20.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = value, fontWeight = FontWeight.Medium, fontSize = 20.sp, color = Color.Black)
-
+fun TripDetailsTopBar(title: String, onBackClick: () -> Unit) {
+    TopAppBar(
+        title = { Text(title, color = MaterialTheme.colorScheme.onBackground) },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
                 Icon(
                     painter = painterResource(id = R.drawable.arrowdown),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clickable { expanded = !expanded }
+                    contentDescription = "Назад",
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
             }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background
+        )
+    )
+}
 
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(8.dp, RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                    .background(GreyBackground),
+@Composable
+fun AddressInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    error: String?,
+    leadingIcon: Int,
+    imeAction: ImeAction = ImeAction.Next
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            singleLine = true,
+            isError = error != null,
+            // ✅ ИСПРАВЛЕНО: Используем правильный KeyboardOptions
+            keyboardOptions = KeyboardOptions(imeAction = imeAction),
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = leadingIcon),
+                    contentDescription = label,
+                    tint = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onBackground
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onBackground
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
+        if (error != null) {
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun DateTimePicker(
+    dateTime: LocalDateTime,
+    onDateTimeChange: (LocalDateTime) -> Unit,
+    label: String
+) {
+    val formatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale("ru")) }
+
+    OutlinedTextField(
+        value = dateTime.format(formatter),
+        onValueChange = { /* Только для чтения */ },
+        label = { Text(label) },
+        readOnly = true,
+        trailingIcon = {
+            Icon(
+                painter = painterResource(id = R.drawable.calendar),
+                contentDescription = "Выбрать дату/время",
+                tint = MaterialTheme.colorScheme.onBackground
+            )
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                // Вызов Dialogs
+            },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onBackground
+        ),
+        shape = RoundedCornerShape(12.dp)
+    )
+}
+
+@Composable
+fun TransportSelector(
+    selectedType: TransportType,
+    onTypeSelected: (TransportType) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(2.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(35.dp)),
+        shape = RoundedCornerShape(35.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "Транспорт",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround
             ) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = option,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 20.sp,
-                                color = Color.Black
-                            )
-                        },
-                        onClick = {
-                            onOptionSelected(option)
-                            expanded = false
-                        }
-                    )
+                TransportType.entries.forEach { type ->
+                    val isSelected = type == selectedType
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { onTypeSelected(type) }
+                            .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background)
+                            .border(2.dp, if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground, RoundedCornerShape(16.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = type.name.replaceFirstChar { it.uppercase() },
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// --- Диалог подтверждения удаления ---
 @Composable
-fun ConfirmDeleteDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Box(
+fun AlertTimePicker(){
+    Row(
         modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .background(Color.White, RoundedCornerShape(20.dp))
-            .border(2.dp, Color.Black, RoundedCornerShape(20.dp))
-            .padding(24.dp)
+            .fillMaxWidth()
+            .padding(top = 16.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        Text("Уведомление:", fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { /* Вызов диалога выбора времени */ }
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Вы уверены?",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                textAlign = TextAlign.Center
+            Icon(
+                painter = painterResource(id = R.drawable.bell),
+                contentDescription = "Время уведомления",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(20.dp)
             )
-            Text(
-                text = "Это действие нельзя отменить.",
-                fontSize = 18.sp,
-                color = Color.DarkGray,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier
-                        .weight(1f)
-                        .shadow(8.dp, RoundedCornerShape(28.dp)),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray)
-                ) {
-                    Text("Да", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .weight(1f)
-                        .shadow(8.dp, RoundedCornerShape(28.dp)),
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
-                ) {
-                    Text("Отмена", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
-            }
+            Spacer(Modifier.width(8.dp))
+            Text("За 10 мин. до выхода", color = MaterialTheme.colorScheme.onPrimary)
         }
     }
 }

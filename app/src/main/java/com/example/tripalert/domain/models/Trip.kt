@@ -13,6 +13,7 @@ data class Trip(
     val transportType: TransportType,
     val alertTime: LocalDateTime?,
 
-    val originAddress: String? = null,       // новое поле
-    val destinationAddress: String? = null   // новое поле
+    // Эти поля важны для UI, хоть их и нет в БД напрямую
+    val originAddress: String? = null,
+    val destinationAddress: String? = null
 )

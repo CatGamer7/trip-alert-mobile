@@ -1,191 +1,187 @@
 package com.example.tripalert.ui.screens.tripdetails
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tripalert.domain.models.GeoPoint
-import com.example.tripalert.domain.models.Reminder
 import com.example.tripalert.domain.models.TransportType
 import com.example.tripalert.domain.models.Trip
-import com.example.tripalert.domain.usecase.TripUseCases
-import com.example.tripalert.domain.usecase.ReminderUseCases
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import com.example.tripalert.domain.repository.TripRepository
+import com.example.tripalert.ui.navigation.TripAlertDestinations
+import com.example.tripalert.util.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Calendar
 
 data class TripDetailsState(
-    val isEditing: Boolean = false,
-    val fromAddress: String = "",
-    val toAddress: String = "",
-    val date: String = "",          // "dd.MM.yyyy"
-    val arrivalTime: String = "",   // "HH:mm"
-    val departureTime: String = "", // "HH:mm"
-    val reminderTime: String = "10 минут",
-    val repeatReminder: String = "Не повторять" // новый параметр
+    val trip: Trip = getDefaultTrip(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val isSaving: Boolean = false,
+    val saveSuccessful: Boolean = false,
+
+    val originAddressError: String? = null,
+    val destinationAddressError: String? = null,
+    val nameError: String? = null
 )
+
+private fun getDefaultTrip(): Trip {
+    return Trip(
+        userId = 1L, // ⚠️ Должен быть реальный ID пользователя
+        name = "",
+        origin = GeoPoint(0.0, 0.0),
+        destination = GeoPoint(0.0, 0.0),
+        plannedTime = LocalDateTime.now().plusHours(1),
+        arrivalTime = null,
+        transportType = TransportType.WALK,
+        alertTime = null,
+        originAddress = "",
+        destinationAddress = ""
+    )
+}
 
 
 class TripDetailsViewModel(
-    private val tripUseCases: TripUseCases,
-    private val reminderUseCases: ReminderUseCases
+    private val tripRepository: TripRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TripDetailsState())
     val state: StateFlow<TripDetailsState> = _state.asStateFlow()
 
-    private val _errors = MutableSharedFlow<String>(replay = 1)
-    val errors: SharedFlow<String> = _errors.asSharedFlow()
+    private val currentTripId: Long? = savedStateHandle[TripAlertDestinations.TRIP_DETAILS_ID_KEY]
 
-    private var currentTripId: Long = 0L
-    private var currentUserId: Long = 1L // временный пользователь, замените на реальный из UserUseCases
-
-    fun setEditing(editing: Boolean) {
-        _state.update { it.copy(isEditing = editing) }
+    init {
+        if (currentTripId != null && currentTripId != -1L) {
+            loadTrip(currentTripId)
+        }
     }
 
-    fun loadTrip(tripId: Long) {
+    // --- Загрузка (режим редактирования) ---
+    private fun loadTrip(tripId: Long) {
         viewModelScope.launch {
-            try {
-                val trip = tripUseCases.getTripById(tripId)
-                currentTripId = trip.id
-                _state.update { s ->
-                    s.copy(
-                        isEditing = true,
-                        fromAddress = trip.originAddress ?: "", // теперь раздельно
-                        toAddress = trip.destinationAddress ?: "",
-                        date = trip.plannedTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
-                        arrivalTime = trip.plannedTime.format(DateTimeFormatter.ofPattern("HH:mm")),
-                        departureTime = trip.alertTime?.format(DateTimeFormatter.ofPattern("HH:mm"))
-                            ?: "",
-                        reminderTime = trip.alertTime?.let { "по расписанию" } ?: s.reminderTime
+            _state.value = _state.value.copy(isLoading = true)
+            when (val result = tripRepository.getTripById(tripId)) {
+                is Resource.Success -> {
+                    result.data?.let { trip ->
+                        _state.value = _state.value.copy(
+                            trip = trip,
+                            isLoading = false
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        error = "Ошибка загрузки поездки: ${result.message}"
                     )
                 }
-            } catch (e: Exception) {
-                _errors.emit("Не удалось загрузить поездку: ${e.message ?: e::class.simpleName}")
+                else -> Unit
             }
         }
     }
 
-    fun updateField(
-        from: String? = null,
-        to: String? = null,
-        date: String? = null,
-        arrival: String? = null,
-        departure: String? = null,
-        reminderTime: String? = null
-    ) {
-        _state.update { old ->
-            old.copy(
-                fromAddress = from ?: old.fromAddress,
-                toAddress = to ?: old.toAddress,
-                date = date ?: old.date,
-                arrivalTime = arrival ?: old.arrivalTime,
-                departureTime = departure ?: old.departureTime,
-                reminderTime = reminderTime ?: old.reminderTime
-            )
-        }
-    }
-
-    fun calculateDeparture(arrival: String, durationMinutes: Int) {
-        try {
-            val parts = arrival.split(":").map { it.toIntOrNull() ?: 0 }
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, parts.getOrNull(0) ?: 0)
-                set(Calendar.MINUTE, parts.getOrNull(1) ?: 0)
-                add(Calendar.MINUTE, -durationMinutes)
-            }
-            val dep =
-                String.format("%02d:%02d", cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE))
-            updateField(departure = dep)
-        } catch (t: Throwable) {
-            viewModelScope.launch { _errors.emit("Ошибка расчёта времени: ${t.message ?: t::class.simpleName}") }
-        }
-    }
-
-    fun saveTrip(onResult: (Boolean) -> Unit = {}) {
-        val trip = buildTripFromState()
-        viewModelScope.launch {
-            try {
-                if (trip.id == 0L) {
-                    tripUseCases.createTrip(trip)
-                } else {
-                    tripUseCases.updateTrip(trip)
-                }
-                onResult(true)
-            } catch (e: Exception) {
-                _errors.emit("Ошибка сохранения: ${e.message ?: e::class.simpleName}")
-                onResult(false)
-            }
-        }
-    }
-
-    fun deleteTrip(onResult: (Boolean) -> Unit = {}) {
-        if (currentTripId == 0L) {
-            onResult(false)
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                tripUseCases.deleteTrip(currentTripId)
-                onResult(true)
-            } catch (e: Exception) {
-                _errors.emit("Ошибка удаления: ${e.message ?: e::class.simpleName}")
-                onResult(false)
-            }
-        }
-    }
-
-    private fun buildTripFromState(): Trip {
-        val dateParts = state.value.date.split(".")
-        val timeParts = state.value.arrivalTime.split(":")
-
-        val arrivalDateTime = if (dateParts.size == 3 && timeParts.size == 2) {
-            LocalDateTime.of(
-                dateParts[2].toInt(),
-                dateParts[1].toInt(),
-                dateParts[0].toInt(),
-                timeParts[0].toInt(),
-                timeParts[1].toInt()
-            )
-        } else null
-
-        val plannedTime = arrivalDateTime?.minusMinutes(17)
-
-        val originPoint = GeoPoint(0.0, 0.0)
-        val destinationPoint = GeoPoint(0.0, 0.0)
-
-        val alertMinutes = when (state.value.reminderTime) {
-            "5 минут" -> 5L
-            "10 минут" -> 10L
-            "15 минут" -> 15L
-            "30 минут" -> 30L
-            "1 час" -> 60L
-            else -> 15L
-        }
-
-        val alertTime = arrivalDateTime?.minusMinutes(alertMinutes)
-
-        return Trip(
-            id = currentTripId,
-            userId = currentUserId,
-            name = "${state.value.fromAddress} → ${state.value.toAddress}",
-            origin = originPoint,
-            destination = destinationPoint,
-            plannedTime = plannedTime ?: LocalDateTime.now(),
-            arrivalTime = arrivalDateTime,
-            transportType = TransportType.WALK,
-            alertTime = alertTime
+    // --- Обработчики ввода пользователя ---
+    fun updateName(name: String) {
+        _state.value = _state.value.copy(
+            trip = _state.value.trip.copy(name = name),
+            nameError = null
         )
     }
-}
 
+    fun updateOriginAddress(address: String) {
+        _state.value = _state.value.copy(
+            trip = _state.value.trip.copy(originAddress = address),
+            originAddressError = null
+        )
+    }
+
+    fun updateDestinationAddress(address: String) {
+        _state.value = _state.value.copy(
+            trip = _state.value.trip.copy(destinationAddress = address),
+            destinationAddressError = null
+        )
+    }
+
+    fun updatePlannedTime(dateTime: LocalDateTime) {
+        _state.value = _state.value.copy(
+            trip = _state.value.trip.copy(plannedTime = dateTime)
+        )
+    }
+
+    fun updateTransportType(type: TransportType) {
+        _state.value = _state.value.copy(
+            trip = _state.value.trip.copy(transportType = type)
+        )
+    }
+
+    // --- Сохранение (Create/Update) ---
+    fun saveTrip() {
+        // ⚠️ Здесь должен быть вызов Geocoding!
+        if (!validateTrip()) return
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isSaving = true)
+
+            val tripToSave = _state.value.trip.copy(
+                // ⚠️ Заглушка: Назначаем имя, если оно не было введено
+                name = if (_state.value.trip.name.isBlank())
+                    "Поездка в ${_state.value.trip.destinationAddress}"
+                else _state.value.trip.name
+            )
+
+            val result = if (currentTripId != null && currentTripId != -1L) {
+                tripRepository.updateTrip(tripToSave)
+            } else {
+                tripRepository.createTrip(tripToSave)
+            }
+
+            when (result) {
+                is Resource.Success -> {
+                    _state.value = _state.value.copy(isSaving = false, saveSuccessful = true)
+                }
+                is Resource.Error -> {
+                    _state.value = _state.value.copy(
+                        isSaving = false,
+                        error = "Не удалось сохранить: ${result.message}"
+                    )
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    // --- Валидация ---
+    private fun validateTrip(): Boolean {
+        var isValid = true
+        var newOriginError: String? = null
+        var newDestinationError: String? = null
+
+        if (_state.value.trip.originAddress.isNullOrBlank()) {
+            newOriginError = "Укажите место отправления."
+            isValid = false
+        }
+
+        if (_state.value.trip.destinationAddress.isNullOrBlank()) {
+            newDestinationError = "Укажите место назначения."
+            isValid = false
+        }
+
+        _state.value = _state.value.copy(
+            originAddressError = newOriginError,
+            destinationAddressError = newDestinationError
+        )
+        return isValid
+    }
+
+    // --- Утилиты UI ---
+    fun saveComplete() {
+        _state.value = _state.value.copy(saveSuccessful = false)
+    }
+
+    fun errorShown() {
+        _state.value = _state.value.copy(error = null)
+    }
+}

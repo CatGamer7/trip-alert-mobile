@@ -1,22 +1,21 @@
 package com.example.tripalert.data.remote.dto
 
 import java.time.LocalDateTime
-import com.google.gson.annotations.SerializedName
 
-// GeoJSON-backed coordinate DTO: represents a point, but structure mapped by GeoJsonPointAdapter
+// GeoJSON Point
 data class CoordinateDTO(
-    val x: Double, // lon
-    val y: Double  // lat
+    val x: Double, // Longitude
+    val y: Double  // Latitude
 )
 
 data class CreateTripDTO(
     val userId: Long,
-    val name: String,
+    val name: String, // Сюда будем писать "Адрес А -> Адрес Б"
     val origin: CoordinateDTO,
     val destination: CoordinateDTO,
     val plannedTime: LocalDateTime,
     val arrivalTime: LocalDateTime? = null,
-    val transportType: String,
+    val transportType: String, // В БД trips это varchar, оставляем String
     val alertTime: LocalDateTime? = null
 )
 

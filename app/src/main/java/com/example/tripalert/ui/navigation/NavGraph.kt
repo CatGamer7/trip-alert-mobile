@@ -6,11 +6,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import org.koin.androidx.compose.koinViewModel
 import com.example.tripalert.ui.screens.tripdetails.TripDetailsScreen
 import com.example.tripalert.ui.screens.triplist.TripListScreen
-import com.example.tripalert.ui.screens.tripdetails.TripDetailsViewModel
-import org.koin.androidx.compose.getViewModel
 
 @Composable
 fun TripAlertNavGraph() {
@@ -18,38 +15,42 @@ fun TripAlertNavGraph() {
 
     NavHost(
         navController = navController,
-        startDestination = "plans"
+        startDestination = TripAlertDestinations.TRIP_LIST_ROUTE
     ) {
 
         // --- СПИСОК ПОЕЗДОК ---
-        composable("plans") {
+        composable(TripAlertDestinations.TRIP_LIST_ROUTE) {
             TripListScreen(
                 navController = navController,
                 onAddClick = {
-                    navController.navigate("tripDetails")
+                    // Переход на создание (id = -1 или null)
+                    navController.navigate(TripAlertDestinations.tripDetailsRoute(-1L))
                 },
                 onTripClick = { id ->
-                    navController.navigate("tripDetails?tripId=$id")
+                    // Переход на редактирование
+                    navController.navigate(TripAlertDestinations.tripDetailsRoute(id))
                 }
             )
         }
 
         // --- ДЕТАЛИ ПОЕЗДКИ ---
         composable(
-            route = "tripDetails?tripId={tripId}",
+            route = TripAlertDestinations.TRIP_DETAILS_ROUTE,
             arguments = listOf(
-                navArgument("tripId") {
+                navArgument(TripAlertDestinations.TRIP_DETAILS_ID_KEY) {
                     type = NavType.LongType
-                    defaultValue = -1L   // делаем необязательным через defaultValue
+                    defaultValue = -1L
                 }
             )
-        ) { backStackEntry ->
-            val id = backStackEntry.arguments?.getLong("tripId") ?: -1L
-            val tripId = if (id == -1L) null else id
+        ) {
+            // Нам больше не нужно извлекать аргументы вручную здесь,
+            // ViewModel сделает это сама через SavedStateHandle.
 
             TripDetailsScreen(
-                tripId = tripId,
-                isEditing = tripId != null
+                // Передаем только навигационный колбэк
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
     }

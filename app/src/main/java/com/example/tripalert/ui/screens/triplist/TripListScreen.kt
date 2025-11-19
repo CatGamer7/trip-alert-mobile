@@ -1,68 +1,62 @@
 package com.example.tripalert.ui.screens.triplist
 
-import android.R.attr.fontWeight
-import com.example.tripalert.R
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.tripalert.ui.theme.*
-
+import com.example.tripalert.R
+import com.example.tripalert.domain.models.Trip // Используем модель Trip
+import org.koin.androidx.compose.koinViewModel
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Composable
 fun TripListScreen(
     navController: NavHostController,
     onAddClick: () -> Unit,
     onTripClick: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Получаем ViewModel через Koin
+    viewModel: TripListViewModel = koinViewModel()
 ) {
-    val dailyTrips = listOf(1L, 2L, 3L)
-    val otherTrips = listOf(4L, 5L)
+    // Слушаем состояние ViewModel
+    val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Эффект для отображения ошибки в Snackbar
+    LaunchedEffect(state.error) {
+        state.error?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = "OK",
+                duration = SnackbarDuration.Short
+            )
+            viewModel.errorShown() // Сообщаем VM, что ошибка показана
+        }
+    }
 
     Scaffold(
         topBar = { DailyTripsTopBar() },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddClick,
@@ -81,66 +75,99 @@ fun TripListScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
-        LazyColumn(
+        Box(
             modifier = modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            // --- Ежедневные ---
-            if (dailyTrips.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Ежедневно",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    )
+
+            // --- Список поездок ---
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                // --- Ежедневные ---
+                if (state.dailyTrips.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Ежедневно",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
+                    }
+
+                    items(state.dailyTrips.size) { index ->
+                        val trip = state.dailyTrips[index]
+                        TripCard(
+                            trip = trip, // Передаем реальный объект
+                            onClick = { onTripClick(trip.id) }
+                        )
+                    }
                 }
 
-                items(dailyTrips.size) { index ->
-                    TripCard(
-                        onClick = { onTripClick(dailyTrips[index]) }
-                    )
+                // --- Другие ---
+                if (state.otherTrips.isNotEmpty()) {
+                    item {
+                        Divider(
+                            color = MaterialTheme.colorScheme.onBackground,
+                            thickness = 2.dp,
+                            modifier = Modifier
+                                .padding(vertical = 16.dp)
+                                .fillMaxWidth()
+                        )
+                    }
+
+                    item {
+                        Text(
+                            text = "Другие",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
+                    }
+
+                    items(state.otherTrips.size) { index ->
+                        val trip = state.otherTrips[index]
+                        TripCard(
+                            trip = trip, // Передаем реальный объект
+                            onClick = { onTripClick(trip.id) }
+                        )
+                    }
+                }
+
+                // --- Состояние пустого списка ---
+                if (!state.isLoading && state.dailyTrips.isEmpty() && state.otherTrips.isEmpty()) {
+                    item {
+                        Text(
+                            text = "Поездок пока нет. Нажмите + для добавления.",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                    }
                 }
             }
 
-            // --- Другие ---
-            if (otherTrips.isNotEmpty()) {
-                item {
-                    Divider(
-                        color = MaterialTheme.colorScheme.onBackground,
-                        thickness = 2.dp,
-                        modifier = Modifier
-                            .padding(vertical = 16.dp)
-                            .fillMaxWidth()
-                    )
-                }
-
-                item {
-                    Text(
-                        text = "Другие",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    )
-                }
-
-                items(otherTrips.size) { index ->
-                    TripCard(
-                        onClick = { onTripClick(otherTrips[index]) }
-                    )
-                }
+            // --- Индикатор загрузки ---
+            AnimatedVisibility(
+                visible = state.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -149,6 +176,7 @@ fun TripListScreen(
 
 @Composable
 fun DailyTripsTopBar() {
+    // ... (без изменений, остается прежним)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -248,9 +276,18 @@ fun DailyTripsTopBar() {
     }
 }
 
-
 @Composable
-fun TripCard(onClick: () -> Unit) {
+fun TripCard(trip: Trip, onClick: () -> Unit) {
+    // Вспомогательный форматтер для времени
+    val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    // Вспомогательный форматтер для даты
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("d.MM.yyyy") }
+
+    // ⚠️ ВРЕМЕННЫЕ ЗАГЛУШКИ ДЛЯ РАСЧЕТОВ
+    // Это должно быть частью логики, но пока оставим как константы
+    val travelTimeMinutes = 17
+    val timeToLeave = trip.plannedTime.minusMinutes(travelTimeMinutes.toLong())
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -272,15 +309,18 @@ fun TripCard(onClick: () -> Unit) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        "Ул.Вершинина д.39а",
+                        // Используем имя поездки (где хранятся адреса)
+                        trip.name,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(Modifier.width(4.dp))
+                    // Отображаем иконку, соответствующую типу транспорта
                     Icon(
+                        // В реальном проекте здесь должен быть маппинг TransportType -> Resource ID
                         painter = painterResource(id = R.drawable.runman),
-                        contentDescription = null,
+                        contentDescription = trip.transportType.name,
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
@@ -293,6 +333,7 @@ fun TripCard(onClick: () -> Unit) {
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(Modifier.width(4.dp))
+                // Здесь должна быть логика времени до уведомления (пока заглушка)
                 Text(
                     "10 мин.",
                     fontSize = 14.sp,
@@ -308,7 +349,8 @@ fun TripCard(onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                TimeLabel("Время", "12:40")
+                // Время прибытия (plannedTime)
+                TimeLabel("Время", trip.plannedTime.format(timeFormatter))
 
                 Icon(
                     painter = painterResource(id = R.drawable.minus_svgrepo_com),
@@ -319,7 +361,8 @@ fun TripCard(onClick: () -> Unit) {
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
 
-                TimeLabel("Время в пути", "00:17")
+                // Время в пути (заглушка)
+                TimeLabel("Время в пути", "${travelTimeMinutes} мин.")
 
                 Icon(
                     painter = painterResource(id = R.drawable.equal_svgrepo_com),
@@ -330,7 +373,8 @@ fun TripCard(onClick: () -> Unit) {
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
 
-                TimeLabel("Выход в", "12:23")
+                // Время выхода
+                TimeLabel("Выход в", timeToLeave.format(timeFormatter))
             }
 
             Spacer(Modifier.height(16.dp))
@@ -340,13 +384,17 @@ fun TripCard(onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // Дата (Например: Среда, 22.10.2025)
+                val dayOfWeek = trip.plannedTime.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("ru"))
                 Text(
-                    "Среда, 22.10.2025",
+                    "${dayOfWeek.replaceFirstChar { it.uppercase() }}, ${trip.plannedTime.format(dateFormatter)}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
+
+                // Адрес отправления
                 Text(
-                    "Из: Дом",
+                    "Из: ${trip.originAddress ?: "Не указано"}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
@@ -358,6 +406,7 @@ fun TripCard(onClick: () -> Unit) {
 
 @Composable
 private fun TimeLabel(label: String, value: String) {
+    // ... (без изменений, остается прежним)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             label,

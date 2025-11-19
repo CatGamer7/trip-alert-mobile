@@ -1,80 +1,91 @@
 package com.example.tripalert.di
 
-import org.koin.androidx.viewmodel.dsl.viewModel
+import androidx.room.Room
+import com.example.tripalert.data.local.TripDatabase
+import com.example.tripalert.data.local.dao.TripDao
 import com.example.tripalert.data.mapper.TripMapper
 import com.example.tripalert.data.mapper.UserMapper
-import com.example.tripalert.data.mapper.ReminderMapper
-import com.example.tripalert.data.remote.api.ReminderApi
-import com.example.tripalert.data.remote.api.RetrofitInstance
 import com.example.tripalert.data.remote.api.TripApi
-import com.example.tripalert.data.remote.api.UserApi
-import com.example.tripalert.data.repository.*
-import com.example.tripalert.domain.repository.ReminderRepository
+import com.example.tripalert.data.repository.TripRepositoryImpl
+import com.example.tripalert.data.service.GeocodingServiceImpl
 import com.example.tripalert.domain.repository.TripRepository
-import com.example.tripalert.domain.repository.UserRepository
-import com.example.tripalert.domain.usecase.*
-import com.example.tripalert.domain.usecase.reminder.CreateReminderUseCase
-import com.example.tripalert.domain.usecase.reminder.DeleteReminderUseCase
-import com.example.tripalert.domain.usecase.reminder.GetRemindersForTripUseCase
-import com.example.tripalert.domain.usecase.reminder.UpdateReminderUseCase
-import com.example.tripalert.domain.usecase.trip.CreateTripUseCase
-import com.example.tripalert.domain.usecase.trip.DeleteTripUseCase
-import com.example.tripalert.domain.usecase.trip.GetTripByIdUseCase
-import com.example.tripalert.domain.usecase.trip.GetTripsUseCase
-import com.example.tripalert.domain.usecase.trip.UpdateTripUseCase
-import com.example.tripalert.domain.usecase.user.GetUserProfileUseCase
-import com.example.tripalert.domain.usecase.user.SignInAnonymouslyUseCase
-import com.example.tripalert.domain.usecase.user.SignOutUseCase
-import com.example.tripalert.domain.usecase.user.UpdateProfileUseCase
+import com.example.tripalert.domain.service.GeocodingService
 import com.example.tripalert.ui.screens.tripdetails.TripDetailsViewModel
+import com.example.tripalert.ui.screens.triplist.TripListViewModel
+import com.example.tripalert.util.LocalDateTimeAdapter
+import com.google.gson.GsonBuilder
+import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.time.LocalDateTime
+
+const val BASE_URL = "http://10.0.2.2:8080/api/"
 
 val appModule = module {
 
-    // --- Mappers ---
+    // --- 1. NETWORK ---
+    single {
+        GsonBuilder()
+            .registerTypeAdapter(LocalDateTime::class.java, LocalDateTimeAdapter())
+            .create()
+    }
+
+    single {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create(get()))
+            .build()
+    }
+
+    single { get<Retrofit>().create(TripApi::class.java) }
+
+    // --- 2. DATABASE (ROOM) ---
+
+    single {
+        Room.databaseBuilder(
+            androidContext(),
+            TripDatabase::class.java,
+            "trip_alert_database"
+        )
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+    single<TripDao> {
+        get<TripDatabase>().tripDao()
+    }
+
+    // --- 3. UTILS ---
     single { TripMapper }
-    single { ReminderMapper }
     single { UserMapper }
 
-    // --- Retrofit API ---
-    single<TripApi> { RetrofitInstance.tripApi }
-    single<ReminderApi> { RetrofitInstance.reminderApi }
-    single<UserApi> { RetrofitInstance.userApi }
+    single<GeocodingService> {
+        GeocodingServiceImpl()
+    }
 
-    // --- Repositories ---
-    single<TripRepository> { TripRepositoryImpl(get(), get()) }
-    single<ReminderRepository> { ReminderRepositoryImpl(get()) }
-    single<UserRepository> { UserRepositoryImpl(get()) }
-
-    // --- UseCases ---
-    single {
-        TripUseCases(
-            createTrip = CreateTripUseCase(get()),
-            updateTrip = UpdateTripUseCase(get()),
-            getTripById = GetTripByIdUseCase(get()),
-            getTrips = GetTripsUseCase(get()),
-            deleteTrip = DeleteTripUseCase(get())
+    // --- 4. REPOSITORY ---
+    single<TripRepository> {
+        TripRepositoryImpl(
+            api = get(),
+            dao = get(), // Теперь Koin знает, как получить правильный DAO
+            mapper = get(),
+            geocodingService = get()
         )
     }
 
-    single {
-        ReminderUseCases(
-            createReminder = CreateReminderUseCase(get()),
-            updateReminder = UpdateReminderUseCase(get()),
-            deleteReminder = DeleteReminderUseCase(get()),
-            getRemindersForTrip = GetRemindersForTripUseCase(get())
+    // --- 5. VIEW MODELS ---
+    viewModel {
+        TripListViewModel(
+            tripRepository = get()
         )
     }
 
-    single {
-        UserUseCases(
-            getUserProfile = GetUserProfileUseCase(get()),
-            updateProfile = UpdateProfileUseCase(get()),
-            signOut = SignOutUseCase(get()),
-            signInAnonymously = SignInAnonymouslyUseCase(get())
+    viewModel { parameters ->
+        TripDetailsViewModel(
+            tripRepository = get(),
+            savedStateHandle = parameters.get()
         )
     }
-
-    // --- ViewModels ---
-    viewModel { TripDetailsViewModel(get(), get()) }
 }

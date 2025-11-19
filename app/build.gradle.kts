@@ -51,13 +51,24 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation(libs.androidx.junit.ktx)
+    androidTestImplementation(libs.junit.junit)
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // --- CORE ---
     implementation("androidx.core:core-ktx:1.13.1")
+// В секции dependencies
+// JUnit 5 (или 4) для тестов
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
 
+// MockWebServer для симуляции бэкенда
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+
+// Для kotlinx.coroutines в тестах
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     // --- LIFECYCLE ---
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")

@@ -1,40 +1,46 @@
 package com.example.tripalert.data.remote.gson
 
-import com.example.tripalert.data.remote.dto.CoordinateDTO
+import com.example.tripalert.domain.models.GeoPoint // Используем Domain-объект
 import com.google.gson.TypeAdapter
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
+import java.io.IOException
 
 /**
- * Читает/пишет GeoJSON Point:
- * Read example:
- *  { "type": "Point", "coordinates": [lon, lat] }
- *
- * Write (we также отправляем GeoJSON Point на сервер):
- *  { "type": "Point", "coordinates": [lon, lat] }
- *
- * Internally maps to CoordinateDTO(x = lon, y = lat)
+ * Адаптер для чтения/записи GeoJSON Point { "type": "Point", "coordinates": [lon, lat] }
+ * Напрямую маппит в Domain-объект GeoPoint.
  */
-class GeoJsonPointAdapter : TypeAdapter<CoordinateDTO>() {
+class GeoJsonPointAdapter : TypeAdapter<GeoPoint>() { // Привязываемся к GeoPoint
 
-    override fun read(reader: JsonReader): CoordinateDTO {
+    @Throws(IOException::class)
+    override fun read(reader: JsonReader): GeoPoint {
         var lon = 0.0
         var lat = 0.0
+        var foundCoordinates = false
+
+        // Проверка на null (если сервер прислал null)
+        if (reader.peek() == JsonToken.NULL) {
+            reader.nextNull()
+            // Возвращаем пустой GeoPoint или выбрасываем исключение, если он обязателен.
+            // Предположим, что он не может быть null.
+            return GeoPoint(0.0, 0.0)
+        }
 
         reader.beginObject()
         while (reader.hasNext()) {
-            val name = reader.nextName()
-            when (name) {
+            when (reader.nextName()) {
                 "type" -> {
-                    // читаем и игнорируем (ожидаем "Point")
+                    // Читаем, но игнорируем
                     if (reader.peek() != JsonToken.NULL) reader.nextString() else reader.nextNull()
                 }
                 "coordinates" -> {
+                    foundCoordinates = true
                     reader.beginArray()
+                    // GeoJSON порядок: [lon (x), lat (y)]
                     if (reader.hasNext()) lon = reader.nextDouble()
                     if (reader.hasNext()) lat = reader.nextDouble()
-                    // пропускаем возможные дополнительные координаты
+                    // Пропускаем возможные z-координаты и др.
                     while (reader.hasNext()) reader.skipValue()
                     reader.endArray()
                 }
@@ -43,18 +49,25 @@ class GeoJsonPointAdapter : TypeAdapter<CoordinateDTO>() {
         }
         reader.endObject()
 
-        return CoordinateDTO(x = lon, y = lat)
+        // Проверка: мы должны были найти координаты
+        if (!foundCoordinates) {
+            throw IOException("GeoJSON object missing 'coordinates' array.")
+        }
+
+        // В Domain-модели: GeoPoint(latitude, longitude)
+        return GeoPoint(latitude = lat, longitude = lon)
     }
 
-    override fun write(writer: JsonWriter, value: CoordinateDTO) {
-        // Записываем GeoJSON Point (server expects GeoJSON)
+    @Throws(IOException::class)
+    override fun write(writer: JsonWriter, value: GeoPoint) {
+        // Мы всегда отправляем корректный GeoJSON
         writer.beginObject()
         writer.name("type").value("Point")
         writer.name("coordinates")
         writer.beginArray()
-        // GeoJSON coordinates: [lon, lat]
-        writer.value(value.x)
-        writer.value(value.y)
+        // GeoJSON: [lon (x), lat (y)]
+        writer.value(value.longitude)
+        writer.value(value.latitude)
         writer.endArray()
         writer.endObject()
     }

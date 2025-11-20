@@ -16,7 +16,6 @@ object ReminderMapper {
     )
 
     fun toCreateDto(reminder: Reminder): CreateReminderDTO = CreateReminderDTO(
-        tripId = reminder.trip.id,
         notificationTime = reminder.notificationTime
     )
 

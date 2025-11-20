@@ -3,7 +3,6 @@ package com.example.tripalert.data.remote.dto
 import java.time.LocalDateTime
 
 data class CreateReminderDTO(
-    val tripId: Long,
     val notificationTime: LocalDateTime
 )
 

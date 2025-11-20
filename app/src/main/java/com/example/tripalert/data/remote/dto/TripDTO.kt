@@ -1,5 +1,10 @@
 package com.example.tripalert.data.remote.dto
 
+import android.graphics.Point
+import com.example.tripalert.data.remote.gson.GeoJsonPointAdapter
+import com.example.tripalert.domain.models.GeoPoint
+import com.example.tripalert.domain.models.TransportType
+import com.google.gson.annotations.JsonAdapter
 import java.time.LocalDateTime
 
 // GeoJSON Point
@@ -10,33 +15,45 @@ data class CoordinateDTO(
 
 data class CreateTripDTO(
     val userId: Long,
-    val name: String, // Сюда будем писать "Адрес А -> Адрес Б"
-    val origin: CoordinateDTO,
-    val destination: CoordinateDTO,
+    val name: String,
+
+    @JsonAdapter(GeoJsonPointAdapter::class)
+    val origin: GeoPoint,
+    @JsonAdapter(GeoJsonPointAdapter::class)
+    val destination: GeoPoint,
+
     val plannedTime: LocalDateTime,
-    val arrivalTime: LocalDateTime? = null,
-    val transportType: String, // В БД trips это varchar, оставляем String
-    val alertTime: LocalDateTime? = null
+    val arrivalTime: LocalDateTime?,
+    val transportType: TransportType = TransportType.WALK,
+    val reminderData: CreateReminderDTO
 )
 
 data class UpdateTripDTO(
     val name: String? = null,
-    val origin: CoordinateDTO? = null,
-    val destination: CoordinateDTO? = null,
+
+    @JsonAdapter(GeoJsonPointAdapter::class)
+    val origin: GeoPoint? = null,
+    @JsonAdapter(GeoJsonPointAdapter::class)
+    val destination: GeoPoint? = null,
+
     val plannedTime: LocalDateTime? = null,
     val arrivalTime: LocalDateTime? = null,
-    val transportType: String? = null,
-    val alertTime: LocalDateTime? = null
+    val transportType: TransportType? = null,
+    val reminderData: UpdateReminderDTO? = null
 )
 
 data class TripResponseDTO(
     val id: Long,
     val userId: Long,
     val name: String,
-    val origin: CoordinateDTO,
-    val destination: CoordinateDTO,
+
+    @JsonAdapter(GeoJsonPointAdapter::class)
+    val origin: GeoPoint,
+    @JsonAdapter(GeoJsonPointAdapter::class)
+    val destination: GeoPoint,
+
     val plannedTime: LocalDateTime,
     val arrivalTime: LocalDateTime?,
-    val transportType: String,
-    val alertTime: LocalDateTime?
+    val transportType: TransportType,
+    val reminderData: ReminderResponseDTO
 )

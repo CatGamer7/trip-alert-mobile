@@ -21,14 +21,14 @@ class TripRepositoryImpl(
 
     /**
      * Преобразует текстовые адреса в координаты с помощью GeocodingService.
-     * Добавляет проверку на null/пустоту.
      */
     private suspend fun geocodeTrip(trip: Trip): Resource<Trip> {
 
-        // ✅ ИСПРАВЛЕНИЕ: Получаем String? из Trip и проверяем на пустоту/null.
+        // ✅ FIX: originAddress и destinationAddress теперь существуют в Trip
         val originAddress = trip.originAddress
         if (originAddress.isNullOrBlank()) {
-            return Resource.Error("Адрес отправления не может быть пустым.")
+            // Если адрес не задан, используем существующие координаты
+            return Resource.Success(trip)
         }
 
         val destinationAddress = trip.destinationAddress
@@ -36,13 +36,13 @@ class TripRepositoryImpl(
             return Resource.Error("Адрес назначения не может быть пустым.")
         }
 
-        // 1. Геокодирование пункта отправления (Теперь передаем не-null String)
+        // 1. Геокодирование пункта отправления
         val originResource = geocodingService.getCoordinatesFromAddress(originAddress)
         if (originResource is Resource.Error || originResource.data == null) {
             return Resource.Error("Не удалось найти координаты для адреса отправления: ${originResource.message}")
         }
 
-        // 2. Геокодирование пункта назначения (Теперь передаем не-null String)
+        // 2. Геокодирование пункта назначения
         val destinationResource = geocodingService.getCoordinatesFromAddress(destinationAddress)
         if (destinationResource is Resource.Error || destinationResource.data == null) {
             return Resource.Error("Не удалось найти координаты для адреса назначения: ${destinationResource.message}")
@@ -52,44 +52,31 @@ class TripRepositoryImpl(
         return Resource.Success(
             trip.copy(
                 origin = originResource.data,
-                destination = destinationResource.data
+                destination = destinationResource.data,
+                // Очищаем текстовые адреса после успешного геокодирования
+                originAddress = null,
+                destinationAddress = null
             )
         )
     }
 
-    // --- GET TRIPS (Source of Truth: Cache-First) ---
+    // --- GET TRIPS (Cache-First) ---
     override fun getTrips(userId: Long): Flow<Resource<List<Trip>>> = flow {
-
         emit(Resource.Loading(isLoading = true))
-
         val localTrips = try {
             dao.getTripsByUserId(userId).map { mapper.mapEntityToDomain(it) }
-        } catch (e: Exception) {
-            emptyList()
-        }
-
-        if (localTrips.isNotEmpty()) {
-            emit(Resource.Loading(data = localTrips, isLoading = true))
-        }
+        } catch (e: Exception) { emptyList() }
+        if (localTrips.isNotEmpty()) { emit(Resource.Loading(data = localTrips, isLoading = true)) }
 
         try {
             val remoteTripDtos = api.getTrips(userId)
             val remoteTrips = remoteTripDtos.map { mapper.mapDtoToDomain(it) }
-
             dao.clearAndInsertTrips(remoteTripDtos.map { mapper.mapDtoToEntity(it) })
-
             emit(Resource.Success(remoteTrips))
-
         } catch (e: HttpException) {
-            emit(Resource.Error(
-                message = "Ошибка сети (${e.code()}). Проверьте сервер.",
-                data = localTrips
-            ))
+            emit(Resource.Error(message = "Ошибка сети (${e.code()}). Проверьте сервер.", data = localTrips))
         } catch (e: IOException) {
-            emit(Resource.Error(
-                message = "Не удалось связаться с сервером. Проверьте интернет.",
-                data = localTrips
-            ))
+            emit(Resource.Error(message = "Не удалось связаться с сервером. Проверьте интернет.", data = localTrips))
         } finally {
             emit(Resource.Loading(isLoading = false))
         }
@@ -97,21 +84,15 @@ class TripRepositoryImpl(
 
     // --- CREATE TRIP ---
     override suspend fun createTrip(trip: Trip): Resource<Trip> {
-        // 1. Сначала геокодируем адреса
         val geocodeResult = geocodeTrip(trip)
-        if (geocodeResult is Resource.Error) {
-            return geocodeResult
-        }
+        if (geocodeResult is Resource.Error) { return geocodeResult }
         val tripWithCoords = geocodeResult.data!!
 
-        // 2. Далее стандартный вызов API
         return try {
             val createDto = mapper.mapDomainToCreateDto(tripWithCoords)
             val responseDto = api.createTrip(createDto)
-
             val createdTrip = mapper.mapDtoToDomain(responseDto)
             dao.insertTrip(mapper.mapDtoToEntity(responseDto))
-
             Resource.Success(createdTrip)
         } catch (e: HttpException) {
             Resource.Error("Ошибка сервера при создании поездки: ${e.message()}")
@@ -122,20 +103,16 @@ class TripRepositoryImpl(
 
     // --- UPDATE TRIP ---
     override suspend fun updateTrip(trip: Trip): Resource<Unit> {
-        // 1. Сначала геокодируем адреса
         val geocodeResult = geocodeTrip(trip)
         if (geocodeResult is Resource.Error) {
             return Resource.Error(geocodeResult.message ?: "Ошибка геокодирования при обновлении.")
         }
         val tripWithCoords = geocodeResult.data!!
 
-        // 2. Далее стандартный вызов API
         return try {
-            val updateDto = mapper.mapDomainToUpdateDto(tripWithCoords)
+            val updateDto = mapper.mapDomainToUpdateDto(tripWithCoords) // ✅ Используем новый метод
             api.updateTrip(trip.id, updateDto)
-
             dao.updateTrip(mapper.mapDomainToEntity(tripWithCoords))
-
             Resource.Success(Unit)
         } catch (e: HttpException) {
             Resource.Error("Ошибка сервера при обновлении поездки: ${e.message()}")
@@ -146,12 +123,9 @@ class TripRepositoryImpl(
 
     // --- GET TRIP BY ID ---
     override suspend fun getTripById(tripId: Long): Resource<Trip> {
-        // ... (код остается прежним)
         val localTrip = try {
             dao.getTripById(tripId)?.let { mapper.mapEntityToDomain(it) }
-        } catch (e: Exception) {
-            null
-        }
+        } catch (e: Exception) { null }
 
         if (localTrip != null) return Resource.Success(localTrip)
 
@@ -169,7 +143,6 @@ class TripRepositoryImpl(
 
     // --- DELETE TRIP ---
     override suspend fun deleteTrip(tripId: Long): Resource<Unit> {
-        // ... (код остается прежним)
         return try {
             api.deleteTrip(tripId)
             dao.deleteTrip(tripId)

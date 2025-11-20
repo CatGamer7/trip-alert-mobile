@@ -9,57 +9,8 @@ import java.time.LocalDateTime
 
 object TripMapper {
 
-    // --- DTO <-> Domain (Чтение из сети) ---
-
-    fun mapDtoToDomain(dto: TripResponseDTO): Trip {
-        return Trip(
-            id = dto.id,
-            userId = dto.userId,
-            name = dto.name,
-            // (y, x) -> (Lat, Lon)
-            origin = GeoPoint(dto.origin.y, dto.origin.x),
-            destination = GeoPoint(dto.destination.y, dto.destination.x),
-            plannedTime = dto.plannedTime,
-            arrivalTime = dto.arrivalTime,
-            transportType = TransportType.valueOf(dto.transportType),
-            alertTime = dto.alertTime,
-            originAddress = "",
-            destinationAddress = ""
-        )
-    }
-
-    // --- Domain -> CreateTripDTO (Создание) ---
-
-    fun mapDomainToCreateDto(domain: Trip): CreateTripDTO {
-        return CreateTripDTO(
-            userId = domain.userId,
-            name = domain.name,
-            // (Lat, Lon) -> (Lon, Lat) -> (x, y)
-            origin = CoordinateDTO(domain.origin.longitude, domain.origin.latitude),
-            destination = CoordinateDTO(domain.destination.longitude, domain.destination.latitude),
-            plannedTime = domain.plannedTime,
-            arrivalTime = domain.arrivalTime,
-            transportType = domain.transportType.name,
-            alertTime = domain.alertTime
-        )
-    }
-
-    // --- Domain -> UpdateTripDTO (Обновление) ---
-
-    fun mapDomainToUpdateDto(domain: Trip): UpdateTripDTO {
-        return UpdateTripDTO(
-            name = domain.name,
-            origin = CoordinateDTO(domain.origin.longitude, domain.origin.latitude),
-            destination = CoordinateDTO(domain.destination.longitude, domain.destination.latitude),
-            plannedTime = domain.plannedTime,
-            arrivalTime = domain.arrivalTime,
-            transportType = domain.transportType.name,
-            alertTime = domain.alertTime
-        )
-    }
-
-    // --- Entity <-> Domain (для локальной БД) ---
-
+    // --- Entity -> Domain (Чтение из БД) ---
+    // ✅ FIX: Убрана ошибочная заглушка LocalDateTime.MIN
     fun mapEntityToDomain(entity: TripEntity): Trip {
         return Trip(
             id = entity.id,
@@ -68,13 +19,15 @@ object TripMapper {
             origin = GeoPoint(entity.originLat, entity.originLon),
             destination = GeoPoint(entity.destinationLat, entity.destinationLon),
             plannedTime = entity.plannedTime,
-            arrivalTime = entity.arrivalTime,
+            arrivalTime = entity.arrivalTime, // Null-Safety OK
             transportType = TransportType.valueOf(entity.transportType),
-            alertTime = entity.alertTime,
-            originAddress = "", // Предполагается, что адрес хранится где-то еще или должен быть загружен
-            destinationAddress = ""
+            alertTime = entity.alertTime, // Null-Safety OK
+            originAddress = null, // Не хранится в Entity
+            destinationAddress = null
         )
     }
+
+    // --- Domain -> Entity (Запись в БД) ---
 
     fun mapDomainToEntity(domain: Trip): TripEntity {
         return TripEntity(
@@ -92,8 +45,8 @@ object TripMapper {
         )
     }
 
-    // --- DTO -> Entity (для кэширования) ---
-
+    // --- DTO -> Entity (Кэширование из сети в БД) ---
+    // ✅ FIX: Извлечение Lat/Lon из GeoPoint (предполагая DTO исправлены)
     fun mapDtoToEntity(dto: TripResponseDTO): TripEntity {
         return TripEntity(
             id = dto.id,
@@ -101,12 +54,63 @@ object TripMapper {
             name = dto.name,
             plannedTime = dto.plannedTime,
             arrivalTime = dto.arrivalTime,
+            transportType = dto.transportType.name,
+            alertTime = dto.reminderData.notificationTime,
+            originLat = dto.origin.latitude,
+            originLon = dto.origin.longitude,
+            destinationLat = dto.destination.latitude,
+            destinationLon = dto.destination.longitude
+        )
+    }
+
+    // --- DTO -> Domain (Чтение ответа сервера) ---
+    fun mapDtoToDomain(dto: TripResponseDTO): Trip {
+        return Trip(
+            id = dto.id,
+            userId = dto.userId,
+            name = dto.name,
+            origin = dto.origin,
+            destination = dto.destination,
+            plannedTime = dto.plannedTime,
+            arrivalTime = dto.arrivalTime,
             transportType = dto.transportType,
-            alertTime = dto.alertTime,
-            originLat = dto.origin.y,
-            originLon = dto.origin.x,
-            destinationLat = dto.destination.y,
-            destinationLon = dto.destination.x
+            alertTime = dto.reminderData.notificationTime,
+            originAddress = null,
+            destinationAddress = null
+        )
+    }
+
+    // --- ✅ ДОБАВЛЕНО: Domain -> DTO (Создание запроса) ---
+    fun mapDomainToCreateDto(domain: Trip): CreateTripDTO {
+        return CreateTripDTO(
+            userId = domain.userId,
+            name = domain.name,
+            origin = domain.origin,
+            destination = domain.destination,
+            plannedTime = domain.plannedTime,
+            arrivalTime = domain.arrivalTime
+                ?: throw IllegalArgumentException("Arrival time must be set for creation."),
+            transportType = domain.transportType,
+            reminderData = CreateReminderDTO(
+                notificationTime = domain.alertTime
+                    ?: throw IllegalArgumentException("Alert time required for creation.")
+            )
+        )
+    }
+
+    // --- ✅ ДОБАВЛЕНО: Domain -> DTO (Обновление запроса) ---
+    fun mapDomainToUpdateDto(domain: Trip): UpdateTripDTO {
+        return UpdateTripDTO(
+            name = domain.name,
+            origin = domain.origin,
+            destination = domain.destination,
+            plannedTime = domain.plannedTime,
+            arrivalTime = domain.arrivalTime,
+            transportType = domain.transportType,
+            // Создаем DTO напоминания, только если alertTime не null
+            reminderData = domain.alertTime?.let {
+                UpdateReminderDTO(notificationTime = it)
+            }
         )
     }
 }

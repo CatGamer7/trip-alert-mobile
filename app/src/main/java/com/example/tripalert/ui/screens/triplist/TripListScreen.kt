@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.tripalert.R
-import com.example.tripalert.domain.models.Trip // Используем модель Trip
+import com.example.tripalert.domain.models.Trip
 import org.koin.androidx.compose.koinViewModel
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -34,15 +34,13 @@ fun TripListScreen(
     navController: NavHostController,
     onAddClick: () -> Unit,
     onTripClick: (Long) -> Unit,
+    onUserClick: () -> Unit, // ← добавлен колбэк для аватара пользователя
     modifier: Modifier = Modifier,
-    // Получаем ViewModel через Koin
     viewModel: TripListViewModel = koinViewModel()
 ) {
-    // Слушаем состояние ViewModel
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Эффект для отображения ошибки в Snackbar
     LaunchedEffect(state.error) {
         state.error?.let { message ->
             snackbarHostState.showSnackbar(
@@ -50,12 +48,12 @@ fun TripListScreen(
                 actionLabel = "OK",
                 duration = SnackbarDuration.Short
             )
-            viewModel.errorShown() // Сообщаем VM, что ошибка показана
+            viewModel.errorShown()
         }
     }
 
     Scaffold(
-        topBar = { DailyTripsTopBar() },
+        topBar = { DailyTripsTopBar(navController = navController, onUserClick = onUserClick) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(
@@ -65,11 +63,7 @@ fun TripListScreen(
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CircleShape
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.plus),
-                    contentDescription = "Добавить",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+                Icon(painter = painterResource(id = R.drawable.plus), contentDescription = "Добавить")
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -81,7 +75,6 @@ fun TripListScreen(
                 .fillMaxSize()
         ) {
 
-            // --- Список поездок ---
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -89,101 +82,47 @@ fun TripListScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(vertical = 16.dp)
             ) {
-                // --- Ежедневные ---
-                if (state.dailyTrips.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Ежедневно",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        )
-                    }
 
+                if (state.dailyTrips.isNotEmpty()) {
+                    item { Text("Ежедневно", fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     items(state.dailyTrips.size) { index ->
                         val trip = state.dailyTrips[index]
-                        TripCard(
-                            trip = trip, // Передаем реальный объект
-                            onClick = { onTripClick(trip.id) }
-                        )
+                        TripCard(trip = trip, onClick = { onTripClick(trip.id) })
                     }
                 }
 
-                // --- Другие ---
                 if (state.otherTrips.isNotEmpty()) {
-                    item {
-                        Divider(
-                            color = MaterialTheme.colorScheme.onBackground,
-                            thickness = 2.dp,
-                            modifier = Modifier
-                                .padding(vertical = 16.dp)
-                                .fillMaxWidth()
-                        )
-                    }
-
-                    item {
-                        Text(
-                            text = "Другие",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                        )
-                    }
-
+                    item { Divider(thickness = 2.dp, modifier = Modifier.padding(vertical = 16.dp).fillMaxWidth()) }
+                    item { Text("Другие", fontSize = 24.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     items(state.otherTrips.size) { index ->
                         val trip = state.otherTrips[index]
-                        TripCard(
-                            trip = trip, // Передаем реальный объект
-                            onClick = { onTripClick(trip.id) }
-                        )
+                        TripCard(trip = trip, onClick = { onTripClick(trip.id) })
                     }
                 }
 
-                // --- Состояние пустого списка ---
                 if (!state.isLoading && state.dailyTrips.isEmpty() && state.otherTrips.isEmpty()) {
-                    item {
-                        Text(
-                            text = "Поездок пока нет. Нажмите + для добавления.",
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        )
-                    }
+                    item { Text("Поездок пока нет. Нажмите + для добавления.", textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp), color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)) }
                 }
             }
 
-            // --- Индикатор загрузки ---
-            AnimatedVisibility(
-                visible = state.isLoading,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
         }
     }
 }
 
-
 @Composable
-fun DailyTripsTopBar() {
-    // ... (без изменений, остается прежним)
+fun DailyTripsTopBar(
+    navController: NavHostController,
+    onUserClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
             .padding(top = 18.dp)
     ) {
-        // Тулбар
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -192,12 +131,11 @@ fun DailyTripsTopBar() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Левая часть: аватарка + две кнопки
+
             Row(
                 horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 Box(
                     modifier = Modifier
                         .size(70.dp)
@@ -208,7 +146,7 @@ fun DailyTripsTopBar() {
                         )
                         .background(color = MaterialTheme.colorScheme.primary, shape = CircleShape)
                         .clip(CircleShape)
-                        .clickable { /* действие */ },
+                        .clickable { onUserClick() }, // ← используем колбэк
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -218,28 +156,7 @@ fun DailyTripsTopBar() {
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
-
-                // Первая кнопка
-                IconButton(onClick = { /* действие */ }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.setting),
-                        contentDescription = "Icon 1",
-                        modifier = Modifier.size(30.dp),
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-
-                // Вторая кнопка
-                IconButton(onClick = { /* действие */ }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.bell),
-                        contentDescription = "Icon 2",
-                        modifier = Modifier.size(30.dp),
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
-                }
             }
-
 
             Box(
                 modifier = Modifier
@@ -250,7 +167,11 @@ fun DailyTripsTopBar() {
                     )
                     .background(color = MaterialTheme.colorScheme.primary, shape = CircleShape)
                     .clip(CircleShape)
-                    .clickable { }
+                    .clickable {
+                        navController.navigate(TripAlertDestinations.TRIP_LIST_ROUTE) {
+                            popUpTo(TripAlertDestinations.TRIP_LIST_ROUTE) { inclusive = true }
+                        }
+                    }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -278,13 +199,8 @@ fun DailyTripsTopBar() {
 
 @Composable
 fun TripCard(trip: Trip, onClick: () -> Unit) {
-    // Вспомогательный форматтер для времени
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
-    // Вспомогательный форматтер для даты
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d.MM.yyyy") }
-
-    // ⚠️ ВРЕМЕННЫЕ ЗАГЛУШКИ ДЛЯ РАСЧЕТОВ
-    // Это должно быть частью логики, но пока оставим как константы
     val travelTimeMinutes = 17
     val timeToLeave = trip.plannedTime.minusMinutes(travelTimeMinutes.toLong())
 
@@ -298,8 +214,6 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
         Column(modifier = Modifier.padding(15.dp)) {
-
-            // Заголовок
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -309,16 +223,13 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        // Используем имя поездки (где хранятся адреса)
                         trip.name,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(Modifier.width(4.dp))
-                    // Отображаем иконку, соответствующую типу транспорта
                     Icon(
-                        // В реальном проекте здесь должен быть маппинг TransportType -> Resource ID
                         painter = painterResource(id = R.drawable.runman),
                         contentDescription = trip.transportType.name,
                         modifier = Modifier.size(20.dp),
@@ -333,7 +244,6 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
                 Spacer(Modifier.width(4.dp))
-                // Здесь должна быть логика времени до уведомления (пока заглушка)
                 Text(
                     "10 мин.",
                     fontSize = 14.sp,
@@ -343,48 +253,34 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
 
             Spacer(Modifier.height(16.dp))
 
-            // Время
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Время прибытия (plannedTime)
                 TimeLabel("Время", trip.plannedTime.format(timeFormatter))
-
                 Icon(
                     painter = painterResource(id = R.drawable.minus_svgrepo_com),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .offset(y = 8.dp),
+                    modifier = Modifier.size(18.dp).offset(y = 8.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
-
-                // Время в пути (заглушка)
                 TimeLabel("Время в пути", "${travelTimeMinutes} мин.")
-
                 Icon(
                     painter = painterResource(id = R.drawable.equal_svgrepo_com),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .offset(y = 8.dp),
+                    modifier = Modifier.size(18.dp).offset(y = 8.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
-
-                // Время выхода
                 TimeLabel("Выход в", timeToLeave.format(timeFormatter))
             }
 
             Spacer(Modifier.height(16.dp))
 
-            // Подвал
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Дата (Например: Среда, 22.10.2025)
                 val dayOfWeek = trip.plannedTime.dayOfWeek.getDisplayName(TextStyle.FULL, Locale("ru"))
                 Text(
                     "${dayOfWeek.replaceFirstChar { it.uppercase() }}, ${trip.plannedTime.format(dateFormatter)}",
@@ -392,7 +288,6 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onPrimary
                 )
 
-                // Адрес отправления
                 Text(
                     "Из: ${trip.originAddress ?: "Не указано"}",
                     fontSize = 14.sp,
@@ -403,10 +298,8 @@ fun TripCard(trip: Trip, onClick: () -> Unit) {
     }
 }
 
-
 @Composable
 private fun TimeLabel(label: String, value: String) {
-    // ... (без изменений, остается прежним)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             label,
@@ -414,17 +307,11 @@ private fun TimeLabel(label: String, value: String) {
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onPrimary
         )
-
         Spacer(modifier = Modifier.height(6.dp))
-
         Box(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background, shape = RoundedCornerShape(16.dp))
-                .border(
-                    width = 2.dp,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    shape = RoundedCornerShape(16.dp)
-                )
+                .border(2.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(16.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Text(

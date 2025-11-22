@@ -3,9 +3,9 @@ package com.example.tripalert.domain.models
 import com.google.gson.annotations.SerializedName
 
 enum class TransportType {
-    @SerializedName("walk") WALK,
-    @SerializedName("car") CAR,
-    @SerializedName("bus") BUS,
-    @SerializedName("taxi") TAXI,
-    @SerializedName("scooter") SCOOTER
+    @SerializedName("walk") CAR,
+    @SerializedName("car") BUS,
+    @SerializedName("bus") WALK,
+    @SerializedName("taxi") BIKE,
+    @SerializedName("train") METRO
 }

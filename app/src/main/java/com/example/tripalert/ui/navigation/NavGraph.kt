@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.tripalert.ui.screens.tripdetails.TripDetailsScreen
 import com.example.tripalert.ui.screens.triplist.TripListScreen
+import com.example.tripalert.ui.screens.user.UserScreen
 
 @Composable
 fun TripAlertNavGraph() {
@@ -17,41 +18,53 @@ fun TripAlertNavGraph() {
         navController = navController,
         startDestination = TripAlertDestinations.TRIP_LIST_ROUTE
     ) {
-
         // --- СПИСОК ПОЕЗДОК ---
         composable(TripAlertDestinations.TRIP_LIST_ROUTE) {
             TripListScreen(
                 navController = navController,
                 onAddClick = {
-                    // Переход на создание (id = -1 или null)
                     navController.navigate(TripAlertDestinations.tripDetailsRoute(-1L))
                 },
                 onTripClick = { id ->
-                    // Переход на редактирование
                     navController.navigate(TripAlertDestinations.tripDetailsRoute(id))
+                },
+                onUserClick = {
+                    // Навигация на экран пользователя
+                    val currentUserId = 1L // здесь можно брать из репозитория текущего пользователя
+                    navController.navigate("${TripAlertDestinations.USER_ROUTE}/$currentUserId")
                 }
             )
         }
 
         // --- ДЕТАЛИ ПОЕЗДКИ ---
         composable(
-            route = TripAlertDestinations.TRIP_DETAILS_ROUTE,
+            route = "${TripAlertDestinations.TRIP_DETAILS_ROUTE}/{${TripAlertDestinations.TRIP_DETAILS_ID_KEY}}",
             arguments = listOf(
                 navArgument(TripAlertDestinations.TRIP_DETAILS_ID_KEY) {
                     type = NavType.LongType
                     defaultValue = -1L
                 }
             )
-        ) {
-            // Нам больше не нужно извлекать аргументы вручную здесь,
-            // ViewModel сделает это сама через SavedStateHandle.
-
+        ) { backStackEntry ->
+            val tripId = backStackEntry.arguments?.getLong(TripAlertDestinations.TRIP_DETAILS_ID_KEY) ?: -1L
             TripDetailsScreen(
-                // Передаем только навигационный колбэк
-                onNavigateBack = {
-                    navController.popBackStack()
+                tripId = tripId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // --- ЭКРАН ПОЛЬЗОВАТЕЛЯ ---
+        composable(
+            route = "${TripAlertDestinations.USER_ROUTE}/{userId}",
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.LongType
+                    defaultValue = 0L
                 }
             )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getLong("userId") ?: 0L
+            UserScreen(navController = navController, userId = userId)
         }
     }
 }

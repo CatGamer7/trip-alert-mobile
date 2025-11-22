@@ -16,7 +16,6 @@ data class UpdateUserDTO(
 )
 
 data class UserResponseDTO(
-    val id: Long,
     val username: String,
     val timeOffset: Int,
     val preferredTransport: TransportType

@@ -17,6 +17,7 @@ data class CreateTripDTO(
     val userId: Long,
     val name: String,
 
+
     @JsonAdapter(GeoJsonPointAdapter::class)
     val origin: GeoPoint,
     @JsonAdapter(GeoJsonPointAdapter::class)
@@ -25,8 +26,11 @@ data class CreateTripDTO(
     val plannedTime: LocalDateTime,
     val arrivalTime: LocalDateTime?,
     val transportType: TransportType = TransportType.WALK,
-    val reminderData: CreateReminderDTO
-)
+    val reminderData: CreateReminderDTO,
+
+
+
+    )
 
 data class UpdateTripDTO(
     val name: String? = null,
@@ -46,14 +50,10 @@ data class TripResponseDTO(
     val id: Long,
     val userId: Long,
     val name: String,
-
-    @JsonAdapter(GeoJsonPointAdapter::class)
-    val origin: GeoPoint,
-    @JsonAdapter(GeoJsonPointAdapter::class)
-    val destination: GeoPoint,
-
+    @JsonAdapter(GeoJsonPointAdapter::class) val origin: GeoPoint,
+    @JsonAdapter(GeoJsonPointAdapter::class) val destination: GeoPoint,
     val plannedTime: LocalDateTime,
     val arrivalTime: LocalDateTime?,
     val transportType: TransportType,
-    val reminderData: ReminderResponseDTO
+    val reminderData: SimpleReminderDTO
 )

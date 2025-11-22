@@ -19,7 +19,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.tripalert.di.appModule
 import com.example.tripalert.ui.navigation.TripAlertNavGraph
-import com.example.tripalert.ui.screens.tripdetails.TripDetailsScreen
 import com.example.tripalert.ui.screens.triplist.TripListScreen
 import com.example.tripalert.ui.theme.GreenPrimary
 import com.example.tripalert.ui.theme.ThemeState
@@ -29,12 +28,10 @@ import org.koin.core.context.startKoin
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 🔹 Koin лучше запускать до super.onCreate()
-        startKoin {
-            androidContext(this@MainActivity)
-            modules(appModule)
-        }
         super.onCreate(savedInstanceState)
+
+
+
         setContent {
             TripAlertTheme {
                 TripAlertNavGraph()
@@ -42,6 +39,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 
 
 

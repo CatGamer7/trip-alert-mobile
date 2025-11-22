@@ -4,19 +4,14 @@ import com.example.tripalert.data.remote.dto.CreateUserDTO
 import com.example.tripalert.data.remote.dto.UpdateUserDTO
 import com.example.tripalert.data.remote.dto.UserResponseDTO
 import com.example.tripalert.domain.models.User
-import com.example.tripalert.domain.models.TransportType
 
 object UserMapper {
 
     fun fromDto(dto: UserResponseDTO, password: String = ""): User = User(
-        id = dto.id,
+        id = 0L, // Если бэк не присылает id
         username = dto.username,
-        // В DTO больше нет email, генерируем заглушку или оставляем пустым,
-        // в зависимости от логики Domain модели.
-        email = "${dto.username}@tripalert.com",
         password = password,
         timeOffset = dto.timeOffset,
-        // DTO теперь возвращает Enum, ручная конвертация не нужна
         preferredTransport = dto.preferredTransport
     )
 
@@ -24,7 +19,7 @@ object UserMapper {
         username = user.username,
         password = user.password,
         timeOffset = user.timeOffset,
-        preferredTransport = user.preferredTransport // Передаем Enum напрямую
+        preferredTransport = user.preferredTransport
     )
 
     fun toUpdateDto(user: User): UpdateUserDTO = UpdateUserDTO(

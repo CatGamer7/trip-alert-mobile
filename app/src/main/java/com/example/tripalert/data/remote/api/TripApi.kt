@@ -7,18 +7,18 @@ import retrofit2.http.*
 
 interface TripApi {
 
-    @GET("trips")
+    @GET("/api/trips")
     suspend fun getAllTrips(): List<TripResponseDTO>
 
-    @GET("trips/{id}")
+    @GET("/api/trips/{id}")
     suspend fun getTripById(@Path("id") id: Long): TripResponseDTO
 
-    @POST("trips")
+    @POST("/api/trips")
     suspend fun createTrip(@Body trip: CreateTripDTO)
 
-    @PUT("trips/{id}")
+    @PUT("/api/trips/{id}")
     suspend fun updateTrip(@Path("id") id: Long, @Body trip: UpdateTripDTO)
 
-    @DELETE("trips/{id}")
+    @DELETE("/api/trips/{id}")
     suspend fun deleteTrip(@Path("id") id: Long)
 }

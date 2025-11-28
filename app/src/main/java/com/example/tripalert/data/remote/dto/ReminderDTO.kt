@@ -17,6 +17,3 @@ data class ReminderResponseDTO(
     val notificationTime: LocalDateTime,
     val sent: Boolean
 )
-data class SimpleReminderDTO(
-    val notificationTime: LocalDateTime
-)

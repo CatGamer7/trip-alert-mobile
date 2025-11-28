@@ -1,7 +1,6 @@
 package com.example.tripalert.data.remote.dto
 
-import android.graphics.Point
-import com.example.tripalert.data.remote.gson.GeoJsonPointAdapter
+import com.example.tripalert.util.GeoJsonPointAdapter
 import com.example.tripalert.domain.models.GeoPoint
 import com.example.tripalert.domain.models.TransportType
 import com.google.gson.annotations.JsonAdapter
@@ -55,5 +54,5 @@ data class TripResponseDTO(
     val plannedTime: LocalDateTime,
     val arrivalTime: LocalDateTime?,
     val transportType: TransportType,
-    val reminderData: SimpleReminderDTO
+    val reminderData: CreateReminderDTO
 )

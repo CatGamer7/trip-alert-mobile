@@ -29,14 +29,13 @@ fun TripAlertNavGraph() {
                     navController.navigate(TripAlertDestinations.tripDetailsRoute(id))
                 },
                 onUserClick = {
-                    // Навигация на экран пользователя
-                    val currentUserId = 1L // здесь можно брать из репозитория текущего пользователя
-                    navController.navigate("${TripAlertDestinations.USER_ROUTE}/$currentUserId")
+                    // *** ИЗМЕНЕНИЕ: Навигация на статический маршрут без аргументов ***
+                    navController.navigate(TripAlertDestinations.USER_ROUTE)
                 }
             )
         }
 
-        // --- ДЕТАЛИ ПОЕЗДКИ ---
+        // --- ДЕТАЛИ ПОЕЗДКИ (Остается без изменений) ---
         composable(
             route = "${TripAlertDestinations.TRIP_DETAILS_ROUTE}/{${TripAlertDestinations.TRIP_DETAILS_ID_KEY}}",
             arguments = listOf(
@@ -53,18 +52,12 @@ fun TripAlertNavGraph() {
             )
         }
 
-        // --- ЭКРАН ПОЛЬЗОВАТЕЛЯ ---
-        composable(
-            route = "${TripAlertDestinations.USER_ROUTE}/{userId}",
-            arguments = listOf(
-                navArgument("userId") {
-                    type = NavType.LongType
-                    defaultValue = 0L
-                }
-            )
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getLong("userId") ?: 0L
-            UserScreen(navController = navController, userId = userId)
+        // --- ЭКРАН ПОЛЬЗОВАТЕЛЯ (Упрощено до статического маршрута) ---
+        composable(TripAlertDestinations.USER_ROUTE) {
+            // *** ИЗМЕНЕНИЕ: Убран ненужный аргумент usernameArg ***
+            UserScreen(navController = navController)
         }
+
+        // *** УДАЛЕНЫ СТАРЫЕ МАРШРУТЫ С {userId} и {username} ***
     }
 }

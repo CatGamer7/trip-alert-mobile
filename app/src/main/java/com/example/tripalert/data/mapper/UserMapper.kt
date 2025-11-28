@@ -7,23 +7,27 @@ import com.example.tripalert.domain.models.User
 
 object UserMapper {
 
-    fun fromDto(dto: UserResponseDTO, password: String = ""): User = User(
-        id = 0L, // Если бэк не присылает id
-        username = dto.username,
-        password = password,
-        timeOffset = dto.timeOffset,
-        preferredTransport = dto.preferredTransport
-    )
 
-    fun toCreateDto(user: User): CreateUserDTO = CreateUserDTO(
-        username = user.username,
-        password = user.password,
-        timeOffset = user.timeOffset,
-        preferredTransport = user.preferredTransport
-    )
+    fun fromDto(dto: UserResponseDTO, password: String = ""): User {
+        return User(
+            username = dto.username,
+            timeOffset = dto.timeOffset,
+            preferredTransport = dto.preferredTransport
+        )
+    }
 
-    fun toUpdateDto(user: User): UpdateUserDTO = UpdateUserDTO(
-        timeOffset = user.timeOffset,
-        preferredTransport = user.preferredTransport
-    )
+    fun toCreateDto(user: User, password: String): CreateUserDTO =
+        CreateUserDTO(
+            username = user.username,
+            password = password,
+            timeOffset = user.timeOffset,
+            preferredTransport = user.preferredTransport
+        )
+
+    fun toUpdateDto(user: User): UpdateUserDTO =
+        UpdateUserDTO(
+            timeOffset = user.timeOffset,
+            preferredTransport = user.preferredTransport,
+            username = user.username
+        )
 }

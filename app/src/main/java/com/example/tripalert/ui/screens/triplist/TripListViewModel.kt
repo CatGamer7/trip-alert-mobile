@@ -22,14 +22,16 @@ class TripListViewModel(
     private val getTripsUseCase: GetTripsUseCase
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(TripListState(isLoading = true))
+    // Изначальное состояние: не загружаем, пока не будет команды.
+    private val _state = MutableStateFlow(TripListState(isLoading = false))
     val state: StateFlow<TripListState> = _state.asStateFlow()
 
-    init {
-        loadTrips()
-    }
+    // !!! ИЗМЕНЕНИЕ 1: Блок init удален. Запросы по сети не запускаются автоматически.
 
-    private fun loadTrips() {
+    // !!! ИЗМЕНЕНИЕ 2: Сделал функцию публичной и переименовал в refreshTrips для удобства.
+    fun refreshTrips() {
+        // Мы запускаем загрузку, только если уже не идет загрузка,
+        // но здесь нам это неважно, так как нам нужно просто избежать init-запуска.
         viewModelScope.launch {
             getTripsUseCase().collect { resource ->
                 when (resource) {

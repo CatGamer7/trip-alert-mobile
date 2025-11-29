@@ -7,18 +7,18 @@ import retrofit2.http.*
 
 interface ReminderApi {
 
-    @POST("reminders")
+    @POST("/api/reminders")
     suspend fun createReminder(@Body reminder: CreateReminderDTO): ReminderResponseDTO
 
-    @GET("reminders")
+    @GET("/api/reminders")
     suspend fun getReminders(): List<ReminderResponseDTO>
 
-    @GET("reminders/{id}")
+    @GET("/api/reminders/{id}")
     suspend fun getReminderById(@Path("id") id: Long): ReminderResponseDTO
 
-    @PUT("reminders/{id}")
+    @PUT("/api/reminders/{id}")
     suspend fun updateReminder(@Path("id") id: Long, @Body updates: UpdateReminderDTO): ReminderResponseDTO
 
-    @DELETE("reminders/{id}")
+    @DELETE("/api/reminders/{id}")
     suspend fun deleteReminder(@Path("id") id: Long)
 }

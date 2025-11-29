@@ -1,53 +1,24 @@
-package com.example.tripalert.data.local.dao
+package com.example.tripalert.data.local
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Transaction
-import androidx.room.Update
-import com.example.tripalert.data.local.entity.TripEntity
+import androidx.room.*
+import com.example.tripalert.domain.models.Trip
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TripDao {
 
-    // --- ЧТЕНИЕ ---
-    @Query("SELECT * FROM trips WHERE userId = :userId")
-    suspend fun getTripsByUserId(userId: Long): List<TripEntity>
+    @Query("SELECT * FROM trips")
+    fun getAllTrips(): Flow<List<Trip>>
 
-    @Query("SELECT * FROM trips WHERE id = :tripId")
-    suspend fun getTripById(tripId: Long): TripEntity?
+    @Query("SELECT * FROM trips WHERE id = :tripId LIMIT 1")
+    suspend fun getTripById(tripId: Long): Trip?
 
-    // --- ВСТАВКА ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTrip(trip: TripEntity)
+    suspend fun insertTrip(trip: Trip): Long
 
-    // Вспомогательный метод для вставки списка (используется внутри транзакции)
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(trips: List<TripEntity>)
-
-    // --- УДАЛЕНИЕ ---
-    @Query("DELETE FROM trips WHERE id = :tripId")
-    suspend fun deleteTrip(tripId: Long)
-
-    // Вспомогательный метод для очистки всей таблицы (используется внутри транзакции)
-    @Query("DELETE FROM trips")
-    suspend fun deleteAllTrips()
-
-    // --- ОБНОВЛЕНИЕ ---
     @Update
-    suspend fun updateTrip(trip: TripEntity)
+    suspend fun updateTrip(trip: Trip)
 
-    // --- ТРАНЗАКЦИИ (Сложная логика) ---
-
-    /**
-     * Удаляет все записи и вставляет новые.
-     * Аннотация @Transaction гарантирует, что это произойдет атомарно (все или ничего).
-     * Метод не абстрактный, так как у него есть тело.
-     */
-    @Transaction
-    suspend fun clearAndInsertTrips(trips: List<TripEntity>) {
-        deleteAllTrips() // Сначала чистим кэш
-        insertAll(trips) // Потом записываем свежие данные
-    }
+    @Delete
+    suspend fun deleteTrip(trip: Trip)
 }

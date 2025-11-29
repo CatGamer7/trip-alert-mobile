@@ -1,19 +1,21 @@
-package com.example.tripalert.data.local.converters
-
 import androidx.room.TypeConverter
+import com.example.tripalert.domain.models.GeoPoint
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 class Converters {
-    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
 
     @TypeConverter
-    fun fromTimestamp(value: String?): LocalDateTime? {
-        return value?.let { LocalDateTime.parse(it, formatter) }
+    fun fromGeoPoint(point: GeoPoint): String = "${point.latitude},${point.longitude}"
+
+    @TypeConverter
+    fun toGeoPoint(data: String): GeoPoint {
+        val parts = data.split(",")
+        return GeoPoint(parts[0].toDouble(), parts[1].toDouble())
     }
 
     @TypeConverter
-    fun dateToTimestamp(date: LocalDateTime?): String? {
-        return date?.format(formatter)
-    }
+    fun fromLocalDateTime(date: LocalDateTime): String = date.toString()
+
+    @TypeConverter
+    fun toLocalDateTime(data: String): LocalDateTime = LocalDateTime.parse(data)
 }

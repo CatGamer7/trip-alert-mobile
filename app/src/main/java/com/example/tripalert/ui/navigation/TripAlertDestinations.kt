@@ -1,30 +1,11 @@
-package com.example.tripalert.ui.navigation
-
 object TripAlertDestinations {
+    const val TRIP_LIST_ROUTE = "trip_list"
+    const val TRIP_DETAILS_ROUTE = "trip_details"
+    const val USER_ROUTE = "user"
 
-    // --- Ключи аргументов ---
-
-    // Ключ для передачи ID поездки. -1L означает "создать новую"
     const val TRIP_DETAILS_ID_KEY = "tripId"
+    const val USERNAME_KEY = "username"
 
-    // --- Маршруты ---
-
-    // Основной экран-заглушка (MainScreen)
-    const val MAIN_ROUTE = "main"
-
-    // Экран списка поездок
-    const val TRIP_LIST_ROUTE = "tripList"
-
-    // Экран деталей/создания (с аргументом)
-    const val TRIP_DETAILS_ROUTE = "tripDetails/{$TRIP_DETAILS_ID_KEY}"
-
-    // --- Вспомогательные функции для навигации ---
-
-    /**
-     * Построение маршрута для навигации на экран деталей.
-     * @param tripId ID поездки для редактирования, или null/-1L для создания новой.
-     */
-    fun tripDetailsRoute(tripId: Long? = -1L): String {
-        return "tripDetails/${tripId ?: -1L}"
-    }
+    fun tripDetailsRoute(id: Long) = "$TRIP_DETAILS_ROUTE/$id"
+    fun userRoute(username: String) = "$USER_ROUTE/$username"
 }

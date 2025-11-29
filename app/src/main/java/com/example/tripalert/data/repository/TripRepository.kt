@@ -1,23 +1,12 @@
 package com.example.tripalert.domain.repository
 
 import com.example.tripalert.domain.models.Trip
-import com.example.tripalert.util.Resource // Импорт Resource
-import kotlinx.coroutines.flow.Flow
+import com.example.tripalert.util.Resource
 
 interface TripRepository {
-
-    // 1. ИСПРАВЛЕНО: Теперь возвращает Flow<Resource<List<Trip>>> и принимает userId
-    fun getTrips(userId: Long): Flow<Resource<List<Trip>>>
-
-    // 2. ИСПРАВЛЕНО: Теперь возвращает Resource<Trip>
-    suspend fun getTripById(tripId: Long): Resource<Trip>
-
-    // 3. ИСПРАВЛЕНО: Теперь возвращает Resource<Unit>
-    suspend fun createTrip(trip: Trip): Resource<Trip>
-
-    // 4. ИСПРАВЛЕНО: Теперь возвращает Resource<Unit>
+    suspend fun getAllTrips(): Resource<List<Trip>>
+    suspend fun getTripById(id: Long): Resource<Trip>
+    suspend fun createTrip(trip: Trip): Resource<Unit>
     suspend fun updateTrip(trip: Trip): Resource<Unit>
-
-    // 5. ИСПРАВЛЕНО: Теперь возвращает Resource<Unit>
-    suspend fun deleteTrip(tripId: Long): Resource<Unit>
+    suspend fun deleteTrip(id: Long): Resource<Unit>
 }

@@ -3,15 +3,14 @@ package com.example.tripalert.ui.screens.triplist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tripalert.domain.models.Trip
-import com.example.tripalert.domain.repository.TripRepository
+import com.example.tripalert.domain.usecase.trip.GetTripsUseCase
 import com.example.tripalert.util.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 
-// Класс состояния, который UI будет слушать
 data class TripListState(
     val dailyTrips: List<Trip> = emptyList(),
     val otherTrips: List<Trip> = emptyList(),
@@ -20,68 +19,54 @@ data class TripListState(
 )
 
 class TripListViewModel(
-    private val tripRepository: TripRepository
+    private val getTripsUseCase: GetTripsUseCase
 ) : ViewModel() {
 
-    // Приватный MutableStateFlow для изменения состояния
-    private val _state = MutableStateFlow(TripListState())
-    // Публичный StateFlow для потребления UI
+    // Изначальное состояние: не загружаем, пока не будет команды.
+    private val _state = MutableStateFlow(TripListState(isLoading = false))
     val state: StateFlow<TripListState> = _state.asStateFlow()
 
-    // ⚠️ ВАЖНО: В реальном проекте этот ID должен приходить из UserSession
-    private val currentUserId: Long = 1L
+    // !!! ИЗМЕНЕНИЕ 1: Блок init удален. Запросы по сети не запускаются автоматически.
 
-    init {
-        loadTrips()
-    }
+    // !!! ИЗМЕНЕНИЕ 2: Сделал функцию публичной и переименовал в refreshTrips для удобства.
+    fun refreshTrips() {
+        // Мы запускаем загрузку, только если уже не идет загрузка,
+        // но здесь нам это неважно, так как нам нужно просто избежать init-запуска.
+        viewModelScope.launch {
+            getTripsUseCase().collect { resource ->
+                when (resource) {
 
-    fun loadTrips() {
-        // Вызываем функцию репозитория, которая возвращает Flow<Resource<List<Trip>>>
-        tripRepository.getTrips(currentUserId).onEach { result ->
-            when (result) {
-                is Resource.Loading -> {
-                    _state.value = _state.value.copy(
-                        isLoading = result.isLoading,
-                        // Оставляем старые данные или показываем данные из кэша, если они есть
-                        dailyTrips = splitTrips(result.data).first,
-                        otherTrips = splitTrips(result.data).second,
-                        error = null
-                    )
-                }
-                is Resource.Success -> {
-                    // Разделяем поездки на две категории
-                    val (daily, other) = splitTrips(result.data)
-                    _state.value = _state.value.copy(
-                        dailyTrips = daily,
-                        otherTrips = other,
-                        isLoading = false,
-                        error = null
-                    )
-                }
-                is Resource.Error -> {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    is Resource.Loading -> {
+                        _state.value = _state.value.copy(isLoading = true)
+                    }
+
+                    is Resource.Error -> {
+                        _state.value = TripListState(
+                            error = resource.message,
+                            isLoading = false
+                        )
+                    }
+
+                    is Resource.Success -> {
+                        val trips = resource.data ?: emptyList()
+                        val today = LocalDate.now()
+
+                        val daily = trips.filter { it.plannedTime.toLocalDate() == today }
+                        val other = trips.filter { it.plannedTime.toLocalDate() != today }
+
+                        _state.value = TripListState(
+                            dailyTrips = daily,
+                            otherTrips = other,
+                            isLoading = false
+                        )
+                    }
+
+                    else -> {}
                 }
             }
-        }.launchIn(viewModelScope) // Запускаем Flow в скоупе ViewModel
+        }
     }
 
-    // Вспомогательная функция для разделения поездок
-    private fun splitTrips(trips: List<Trip>?): Pair<List<Trip>, List<Trip>> {
-        if (trips.isNullOrEmpty()) return Pair(emptyList(), emptyList())
-
-        // ⚠️ ЗАГЛУШКА: Здесь должна быть реальная логика, основанная на свойствах Trip (например, isDaily)
-        // Пока делим пополам для демонстрации
-        val dailyCount = if (trips.size > 2) trips.size / 2 else trips.size
-        return Pair(
-            trips.take(dailyCount),
-            trips.drop(dailyCount)
-        )
-    }
-
-    // Функция, которую будет вызывать UI для сброса ошибки (после показа Snackbar)
     fun errorShown() {
         _state.value = _state.value.copy(error = null)
     }

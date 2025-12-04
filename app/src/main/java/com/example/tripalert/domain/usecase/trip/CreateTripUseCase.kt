@@ -6,13 +6,11 @@ import com.example.tripalert.util.Resource
 
 class CreateTripUseCase(private val repository: TripRepository) {
 
-    // Теперь возвращает Resource<Trip>, а не просто Trip
     suspend operator fun invoke(trip: Trip): Resource<out Any> {
         if (trip.originAddress.isNullOrBlank()) {
             return Resource.Error("Адрес отправления не указан")
         }
 
-        // Сброс серверных полей (если нужно)
         val inputTrip = trip.copy(arrivalTime = null, alertTime = null)
         return repository.createTrip(inputTrip)
     }

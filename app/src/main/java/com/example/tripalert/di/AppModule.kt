@@ -15,27 +15,16 @@ import retrofit2.Retrofit
 
 
 val appModule = module {
-
-
     single { get<Retrofit>().create(TripApi::class.java) }
-
-
     single<TripRepository> { TripRepositoryImpl(api = get()) }
-
-    // UseCases
     single { GetTripsUseCase(get()) }
-
-    // ViewModels
     viewModel { TripListViewModel(get()) }
-
-
     viewModel {
         TripDetailsViewModel(
             tripRepository = get(),
             savedStateHandle = get()
         )
     }
-
     single { TripMapper }
     single { UserMapper }
 }

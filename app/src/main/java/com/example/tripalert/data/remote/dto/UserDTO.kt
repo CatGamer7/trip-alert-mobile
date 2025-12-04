@@ -1,7 +1,7 @@
 package com.example.tripalert.data.remote.dto
 
 import com.example.tripalert.domain.models.TransportType
-
+import com.google.gson.annotations.SerializedName
 
 data class CreateUserDTO(
     val username: String,
@@ -21,13 +21,12 @@ data class UpdateUserDTO(
     val preferredTransport: TransportType? = null,
 )
 
-
 data class UserResponseDTO(
+    val id: Long,
     val username: String,
     val timeOffset: Int,
     val preferredTransport: TransportType
 )
-
 
 data class AuthResponseDTO(
     val token: String,

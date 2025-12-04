@@ -6,18 +6,15 @@ import com.example.tripalert.domain.repository.UserRepository
 import com.example.tripalert.domain.usecase.user.*
 import com.example.tripalert.ui.screens.user.UserViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.scope.get
 import org.koin.dsl.module
 import retrofit2.Retrofit
 
 val userModule = module {
 
-
     single { get<Retrofit>().create(UserApi::class.java) }
+    single<UserRepository> { UserRepositoryImpl(api = get(), gson = get()) }
 
-
-    single<UserRepository> { UserRepositoryImpl(api = get()) }
-
-    // --- Domain Layer: UseCases ---
     factory { SignInUseCase(get()) }
     factory { SignOutUseCase(get()) }
     factory { GetUserProfileUseCase(get()) }
@@ -25,7 +22,6 @@ val userModule = module {
     factory { UpdateProfileUseCase(get()) }
     factory { DeleteUserUseCase(get()) }
 
-    // --- Presentation Layer: ViewModel ---
     viewModel {
         UserViewModel(
             signInUseCase = get(),

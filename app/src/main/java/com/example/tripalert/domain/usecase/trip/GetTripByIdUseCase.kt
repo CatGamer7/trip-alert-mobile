@@ -5,8 +5,6 @@ import com.example.tripalert.domain.repository.TripRepository
 import com.example.tripalert.util.Resource
 
 class GetTripByIdUseCase(private val repository: TripRepository) {
-
-    // Возвращает Resource<Trip>
     suspend operator fun invoke(id: Long): Resource<Trip> {
         return repository.getTripById(id)
     }

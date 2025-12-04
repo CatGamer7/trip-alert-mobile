@@ -1,8 +1,5 @@
 package com.example.tripalert.ui.screens.triplist
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,7 +31,7 @@ fun TripListScreen(
     navController: NavHostController,
     onAddClick: () -> Unit,
     onTripClick: (Long) -> Unit,
-    onUserClick: () -> Unit, // ← добавлен колбэк для аватара пользователя
+    onUserClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TripListViewModel = koinViewModel()
 ) {

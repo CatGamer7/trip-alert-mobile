@@ -2,9 +2,6 @@ package com.example.tripalert.ui.screens.tripdetails
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.OutlinedTextFieldDefaults.contentPadding
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,17 +49,14 @@ fun TripDetailsScreen(
     val dateFormatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale("ru")) }
     val timeFormatter = remember { DateTimeFormatter.ofPattern("HH:mm") }
 
-    // --- Дефолтные координаты ---
-    val defaultOrigin = GeoPoint(55.7558, 37.6173) // Москва
-    val defaultDestination = GeoPoint(59.9343, 30.3351) // Санкт-Петербург
+    val defaultOrigin = GeoPoint(55.7558, 37.6173)
+    val defaultDestination = GeoPoint(59.9343, 30.3351)
 
-    // --- Локальное состояние для полей координат ---
     var origin by remember { mutableStateOf(state.trip.origin ?: defaultOrigin) }
     var destination by remember { mutableStateOf(state.trip.destination ?: defaultDestination) }
     var originText by remember { mutableStateOf("${origin.latitude}, ${origin.longitude}") }
     var destinationText by remember { mutableStateOf("${destination.latitude}, ${destination.longitude}") }
 
-    // При создании новой поездки сразу обновляем ViewModel
     LaunchedEffect(state.trip.id) {
         if (isCreationMode) {
             viewModel.updateOriginCoordinates(origin)
@@ -114,7 +107,6 @@ fun TripDetailsScreen(
                     )
                 }
 
-                // --- Поля с координатами ---
                 item {
                     InputCard(
                         label = "Откуда",
@@ -225,7 +217,6 @@ fun TripDetailsScreen(
 
 
 
-// --- Компонент ввода координат ---
 @Composable
 fun TripCoordinatesInput(
     origin: GeoPoint,
@@ -281,7 +272,6 @@ fun TripCoordinatesInput(
     }
 }
 
-// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -441,7 +431,6 @@ fun TransportSelector(
         Column(modifier = Modifier.padding(20.dp)) {
             Text(text = "Транспорт", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(bottom = 12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                // Безопасное использование values() для перечисления
                 TransportType.values().forEach { type ->
                     val isSelected = type == selectedType
                     Box(

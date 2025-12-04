@@ -10,30 +10,25 @@ import retrofit2.http.*
 
 interface UserApi {
 
-
     @POST("/api/users")
-    suspend fun createUser(@Body user: CreateUserDTO): AuthResponseDTO // Возврат AuthResponseDTO для токена
-
+    suspend fun createUser(@Body user: CreateUserDTO): ResponseBody
 
     @POST("/api/login")
-    suspend fun login(@Body credentials: LoginRequestDTO): AuthResponseDTO // Возврат AuthResponseDTO для токена
+    suspend fun login(@Body credentials: LoginRequestDTO): ResponseBody
 
-
-    @GET("/api/users/{username}")
-    suspend fun getUserByUsername(
-        @Path("username") username: String
+    @GET("/api/users/{id}")
+    suspend fun getUserById(
+        @Path("id") id: Long
     ): UserResponseDTO
 
-
-    @PUT("/api/users/{username}")
+    @PUT("/api/users/{id}")
     suspend fun updateUser(
-        @Path("username") username: String,
+        @Path("id") id: Long,
         @Body updates: UpdateUserDTO
     ): UserResponseDTO
 
-
-    @DELETE("/api/users/{username}")
+    @DELETE("/api/users/{id}")
     suspend fun deleteUser(
-        @Path("username") username: String
+        @Path("id") id: Long
     )
 }

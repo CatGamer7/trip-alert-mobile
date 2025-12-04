@@ -22,7 +22,6 @@ import org.koin.androidx.compose.getViewModel
 fun UserScreen(navController: NavController) {
     val viewModel: UserViewModel = getViewModel()
 
-    // Состояния полей ввода
     var username by remember { mutableStateOf("Mih Butovskiy") }
     var password by remember { mutableStateOf("password") }
     var offset by remember { mutableStateOf("10") }
@@ -31,7 +30,6 @@ fun UserScreen(navController: NavController) {
     val serverResponse by viewModel.serverResponse.collectAsState()
     val currentUser by viewModel.currentUserState.collectAsState()
 
-    // Если данные пользователя пришли с сервера, обновляем поля ввода
     LaunchedEffect(currentUser) {
         currentUser?.let {
             username = it.username
@@ -44,14 +42,13 @@ fun UserScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .verticalScroll(rememberScrollState()), // Скролл, если экран маленький
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Top
     ) {
         Text("TripAlert Profile", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(Modifier.height(16.dp))
 
-        // --- Inputs ---
         OutlinedTextField(
             value = username,
             onValueChange = { username = it },
@@ -63,7 +60,7 @@ fun UserScreen(navController: NavController) {
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation(), // Скрываем пароль
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(8.dp))
@@ -95,7 +92,6 @@ fun UserScreen(navController: NavController) {
 
         Divider(Modifier.padding(vertical = 16.dp))
 
-        // --- Authentication Actions ---
         Text("Auth Actions", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
@@ -122,13 +118,12 @@ fun UserScreen(navController: NavController) {
 
         Spacer(Modifier.height(8.dp))
 
-        // --- Authorized User Actions ---
         Text("User Actions (Need Login)", style = MaterialTheme.typography.titleMedium)
 
         Button(
             onClick = { viewModel.fetchProfile() },
             modifier = Modifier.fillMaxWidth(),
-            enabled = currentUser != null // Активна только если мы залогинены (или можно убрать enabled для теста ошибки)
+            enabled = currentUser != null
         ) {
             Text("Fetch Profile")
         }
@@ -146,7 +141,6 @@ fun UserScreen(navController: NavController) {
 
         Spacer(Modifier.height(8.dp))
 
-        // Кнопка удаления (Красная)
         Button(
             onClick = { viewModel.deleteUser() },
             modifier = Modifier.fillMaxWidth(),
@@ -157,7 +151,6 @@ fun UserScreen(navController: NavController) {
 
         Spacer(Modifier.height(16.dp))
 
-        // --- Logs ---
         Card(
             modifier = Modifier.fillMaxWidth().background(Color.LightGray),
         ) {

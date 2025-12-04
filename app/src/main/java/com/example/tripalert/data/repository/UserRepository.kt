@@ -1,20 +1,19 @@
 package com.example.tripalert.domain.repository
 
-import com.example.tripalert.domain.models.TransportType
 import com.example.tripalert.domain.models.User
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
-    fun getUserProfileFlow(): Flow<User?>
-    fun getCurrentAuthToken(): String?
-
-    // Операции
-    suspend fun signIn(username: String, password: String)
-    suspend fun createUser(username: String, password: String, timeOffset: Int, preferredTransport: TransportType)
-    suspend fun fetchProfileFromServer()
-    suspend fun updateProfile(timeOffset: Int?, preferredTransport: TransportType?)
-    suspend fun deleteUser()
+    suspend fun signIn(username: String, pass: String)
     suspend fun signOut()
 
+    fun getCurrentAuthToken(): String?
     fun getCurrentUserName(): String?
+
+    suspend fun createUser(user: User, pass: String)
+    suspend fun updateProfile(user: User)
+    suspend fun deleteUser()
+
+    suspend fun fetchProfileFromServer()
+    fun getUserProfileFlow(): Flow<User?>
 }

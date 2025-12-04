@@ -18,7 +18,6 @@ fun TripAlertNavGraph() {
         navController = navController,
         startDestination = TripAlertDestinations.TRIP_LIST_ROUTE
     ) {
-        // --- СПИСОК ПОЕЗДОК ---
         composable(TripAlertDestinations.TRIP_LIST_ROUTE) {
             TripListScreen(
                 navController = navController,
@@ -29,13 +28,11 @@ fun TripAlertNavGraph() {
                     navController.navigate(TripAlertDestinations.tripDetailsRoute(id))
                 },
                 onUserClick = {
-                    // *** ИЗМЕНЕНИЕ: Навигация на статический маршрут без аргументов ***
                     navController.navigate(TripAlertDestinations.USER_ROUTE)
                 }
             )
         }
 
-        // --- ДЕТАЛИ ПОЕЗДКИ (Остается без изменений) ---
         composable(
             route = "${TripAlertDestinations.TRIP_DETAILS_ROUTE}/{${TripAlertDestinations.TRIP_DETAILS_ID_KEY}}",
             arguments = listOf(
@@ -52,12 +49,8 @@ fun TripAlertNavGraph() {
             )
         }
 
-        // --- ЭКРАН ПОЛЬЗОВАТЕЛЯ (Упрощено до статического маршрута) ---
         composable(TripAlertDestinations.USER_ROUTE) {
-            // *** ИЗМЕНЕНИЕ: Убран ненужный аргумент usernameArg ***
             UserScreen(navController = navController)
         }
-
-        // *** УДАЛЕНЫ СТАРЫЕ МАРШРУТЫ С {userId} и {username} ***
     }
 }

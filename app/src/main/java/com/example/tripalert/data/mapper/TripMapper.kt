@@ -8,7 +8,6 @@ import com.example.tripalert.domain.models.Trip
 
 object TripMapper {
 
-    // --- Entity -> Domain ---
     fun mapEntityToDomain(entity: TripEntity): Trip = Trip(
         id = entity.id,
         userId = entity.userId,
@@ -23,7 +22,6 @@ object TripMapper {
         destinationAddress = null
     )
 
-    // --- Domain -> Entity ---
     fun mapDomainToEntity(domain: Trip): TripEntity = TripEntity(
         id = domain.id,
         userId = domain.userId,
@@ -38,7 +36,6 @@ object TripMapper {
         destinationLon = domain.destination.longitude
     )
 
-    // --- DTO -> Entity ---
     fun mapDtoToEntity(dto: TripResponseDTO): TripEntity = TripEntity(
         id = dto.id,
         userId = dto.userId,
@@ -53,7 +50,6 @@ object TripMapper {
         destinationLon = dto.destination.longitude
     )
 
-    // --- DTO -> Domain ---
     fun mapDtoToDomain(dto: TripResponseDTO): Trip = Trip(
         id = dto.id,
         userId = dto.userId,
@@ -68,7 +64,6 @@ object TripMapper {
         destinationAddress = null
     )
 
-    // --- Domain -> Create DTO ---
     fun mapDomainToCreateDto(domain: Trip): CreateTripDTO = CreateTripDTO(
         userId = domain.userId,
         name = domain.name,
@@ -84,7 +79,6 @@ object TripMapper {
         )
     )
 
-    // --- Domain -> Update DTO ---
     fun mapDomainToUpdateDto(domain: Trip): UpdateTripDTO = UpdateTripDTO(
         name = domain.name,
         origin = domain.origin,

@@ -25,7 +25,7 @@ class TripDetailsViewModel(
         TripDetailsState(
             trip = Trip(
                 id = 0L,
-                userId = 0L, // при необходимости подставьте реальный
+                userId = 0L,
                 name = "",
                 origin = defaultOrigin,
                 destination = defaultDestination,
@@ -107,8 +107,6 @@ class TripDetailsViewModel(
     }
 }
 
-
-// --- State класс ---
 data class TripDetailsState(
     val trip: Trip = getDefaultTrip(),
     val isLoading: Boolean = false,

@@ -7,5 +7,4 @@ object TripAlertDestinations {
     const val USERNAME_KEY = "username"
 
     fun tripDetailsRoute(id: Long) = "$TRIP_DETAILS_ROUTE/$id"
-    fun userRoute(username: String) = "$USER_ROUTE/$username"
 }

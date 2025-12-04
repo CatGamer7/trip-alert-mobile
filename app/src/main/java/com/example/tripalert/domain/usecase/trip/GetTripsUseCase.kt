@@ -7,10 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class GetTripsUseCase(private val repository: TripRepository) {
-
     operator fun invoke(): Flow<Resource<List<Trip>>> = flow {
         emit(Resource.Loading())
-
         try {
             when (val result = repository.getAllTrips()) {
                 is Resource.Success ->
@@ -21,7 +19,6 @@ class GetTripsUseCase(private val repository: TripRepository) {
 
                 is Resource.Loading ->
                     emit(Resource.Loading())
-
                 else -> {}
             }
         } catch (e: Exception) {
